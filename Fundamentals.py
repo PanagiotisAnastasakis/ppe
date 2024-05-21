@@ -12,6 +12,8 @@ class Dirichlet:
     def __init__(self, alpha):
         self.alpha = alpha
         
+    ## just a test    
+        
     ## In the following functions:
     
     ## probs correspond to the prior predictive distribution probabilities
