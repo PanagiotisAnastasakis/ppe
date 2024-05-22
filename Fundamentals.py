@@ -12,8 +12,6 @@ class Dirichlet:
     def __init__(self, alpha):
         self.alpha = alpha
         
-    ## just a test    
-        
     ## In the following functions:
     
     ## probs correspond to the prior predictive distribution probabilities
@@ -341,10 +339,9 @@ class optimize_ppe(Dirichlet): ### closed form is assumed!!!
         
     ### We assume that we have as input the prior probability distribution in closed form, for one partition.
     ### For instance, if Y~N(0,1) and we have a partition A=(a,b], then ppd = P(YεA) = Φ(b) - Φ(a)
-    
-    ### The inputs of ppd are 
+    ### This input ("ppd") is assumed to have two parameters: 
     # 1) the partition (in the form of interval in the continuous case, or a single value in the discrete case)
-    # 2) the hyperparameters lam.
+    # 2) the hyperparameters "lam".
     
     ## To keep track of the dimensions, suppose that we have m hyperparameters and n partitions
     
@@ -390,8 +387,18 @@ class optimize_ppe(Dirichlet): ### closed form is assumed!!!
         
         return dir_grad ## shape (m,1)
     
+    ## Function for computing the derivative of -log(Dirichlet) with respect to alpha, for one covariate set (one set of partitions)
+    
+    def grad_dirichlet_alpha(self, partitions, lam, expert_probs, covariates=None):
+        
+        model_probs = self.ppd_function(partitions, lam, covariates)
+        
+        dlogD = digamma(self.alpha) - np.sum(model_probs * digamma(self.alpha*model_probs)) + np.sum(model_probs * np.log(expert_probs))
+        
+        return - dlogD ## a scalar (shape (1,1))
     
     ## If we have multiple covariate sets (J), we need to sum the gradients
+    
     
     def sum_grad_dirichlet_lambda(self, total_partitions, lam, total_expert_probs, total_covariates=None):
         
@@ -407,20 +414,71 @@ class optimize_ppe(Dirichlet): ### closed form is assumed!!!
 
         return total_dir_grad ## shape (m,1)
     
-    ## Performing gradient descent to optimize the hyperparameters
+    ## Function to sum the derivates of -log(Dirichlet) with respect to alpha across all covariate sets
+    
+    def sum_grad_dirichlet_alpha(self, total_partitions, lam, total_expert_probs, total_covariates=None):
+
+        total_dir_grad = 0
+        
+        for j in range(len(total_partitions)):
+            
+            covariates = total_covariates[j] if total_covariates is not None else None
+
+            total_dir_grad += self.grad_dirichlet_alpha(total_partitions[j], lam, total_expert_probs[j], covariates)
+
+        return total_dir_grad ## a scalar (shape (1,1))
+
+
     
     def gradient_descent(self, total_partitions, total_expert_probs, lam_0, iters, step_size, tol, total_covariates=None, get_lik_progression = True):
         
         lam_old = lam_0
         
         lik_progression = []
+        
+        ## If the input for alpha is None, then we simultaneously optimize the hyperparameters and alpha
+                
+        if self.alpha is None:
+            
+            self.alpha = 1 ### starting value for alpha
+                        
+            for i in range(iters):
+                
+                prev_model_probs = [np.array(self.ppd_function(partitions, lam_old, total_covariates[j] if total_covariates is not None else None)) for j, partitions in enumerate(total_partitions)]
+                
+                prev_lik = self.sum_llik(prev_model_probs, total_expert_probs)
+            
+                lik_progression.append(prev_lik)
+                            
+                lam_new = lam_old - step_size * self.sum_grad_dirichlet_lambda(total_partitions, lam_old, total_expert_probs, total_covariates)  ## update lam
+                
+                self.alpha = self.alpha - step_size * self.sum_grad_dirichlet_alpha(total_partitions, lam_new, total_expert_probs, total_covariates) ## update self.alpha using lam_new
+                
+                curr_model_probs = [np.array(self.ppd_function(partitions, lam_new, total_covariates[j] if total_covariates is not None else None)) for j, partitions in enumerate(total_partitions)]
 
+                curr_lik = self.sum_llik(curr_model_probs, total_expert_probs)
+                
+                if abs(curr_lik - prev_lik) < tol:
+                    break
+                
+                lam_old = lam_new
+            
+            final_alpha = self.alpha
+            
+            self.alpha = None ## resetting alpha to None
+            
+            if get_lik_progression:
+                return lam_new, final_alpha, -np.array(lik_progression)
+            
+            return lam_new, final_alpha
+                
+
+        ## If we have given an input for alpha, then we optimize only lambda
         
         for i in range(iters):
             
             prev_model_probs = [np.array(self.ppd_function(partitions, lam_old, total_covariates[j] if total_covariates is not None else None)) for j, partitions in enumerate(total_partitions)]
-
-                                    
+                
             prev_lik = self.sum_llik(prev_model_probs, total_expert_probs)
             
             lik_progression.append(prev_lik)
@@ -428,7 +486,7 @@ class optimize_ppe(Dirichlet): ### closed form is assumed!!!
             lam_new = lam_old - step_size * self.sum_grad_dirichlet_lambda(total_partitions, lam_old, total_expert_probs, total_covariates)
                         
             curr_model_probs = [np.array(self.ppd_function(partitions, lam_new, total_covariates[j] if total_covariates is not None else None)) for j, partitions in enumerate(total_partitions)]
-
+            
             curr_lik = self.sum_llik(curr_model_probs, total_expert_probs)
             
             if abs(curr_lik - prev_lik) < tol:
@@ -442,7 +500,7 @@ class optimize_ppe(Dirichlet): ### closed form is assumed!!!
         
         return lam_new
     
-    ## Function to get the concentration parameter alpha, indicating how good of a fit this is
+    ## Function to get alpha based on the optimized hyperparameters
     
     def get_alpha(self, total_partitions, best_lam, total_expert_probs, total_covariates=None):
         
@@ -451,3 +509,4 @@ class optimize_ppe(Dirichlet): ### closed form is assumed!!!
         alpha = self.alpha_mle_multiple_samples(best_model_probs, total_expert_probs)
     
         return alpha
+ 
