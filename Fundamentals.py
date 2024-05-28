@@ -413,7 +413,7 @@ class optimize_ppe(Dirichlet): ### closed form is assumed!!!
         return -grad(log_lik, argnums=0)(lam) ## shape (m,1)
     
     
-    ## If we have multiple covariate sets (J), we need to sum the gradients (implemented with "grad_dirichlet_lambda", although "grad_dirichlet_lambda_2") would lead to the exact same results.
+    ## If we have multiple covariate sets (J), we need to sum the gradients (implemented with "grad_dirichlet_lambda", although "grad_dirichlet_lambda_2" would lead to the same results).
     
     def sum_grad_dirichlet_lambda(self, total_partitions, lam, total_expert_probs, total_covariates=None):
         
