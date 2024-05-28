@@ -406,7 +406,7 @@ class optimize_ppe(Dirichlet): ### closed form is assumed!!!
         
         J = len(total_expert_probs) if type(total_expert_probs[0]) in [list, np.ndarray] else 1  ## The number of covariate sets
 
-        total_model_probs = lambda lam: [np.array(self.ppd_function(total_partitions[j], lam, total_covariates[j])) for j in range(J)]  ## The model probabilities given the hyperparameters \lambda for all j=1,...,J
+        total_model_probs = lambda lam: [jnp.array(self.ppd_function(total_partitions[j], lam, total_covariates[j])) for j in range(J)]  ## The model probabilities given the hyperparameters \lambda for all j=1,...,J
 
         log_lik = lambda lam: self.llik(total_model_probs(lam), total_expert_probs, index)
         
