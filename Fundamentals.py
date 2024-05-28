@@ -399,7 +399,21 @@ class optimize_ppe(Dirichlet): ### closed form is assumed!!!
         return dir_grad_lambda ## shape (m,1)
     
     
-    ## If we have multiple covariate sets (J), we need to sum the gradients
+    ## Alternative computation of the dirichlet likelihood gradient with respect to \lambda. Here, we define the likelihood with
+    ## respect to \lambda and we take the gradient right away, without the need of further computations and the use of chain rule. 
+    
+    def grad_dirichlet_lambda_2(self, lam, total_partitions, total_covariates, total_expert_probs, index):
+        
+        J = len(total_expert_probs) if type(total_expert_probs[0]) in [list, np.ndarray] else 1  ## The number of covariate sets
+
+        total_model_probs = lambda lam: [np.array(self.ppd_function(total_partitions[j], lam, total_covariates[j])) for j in range(J)]  ## The model probabilities given the hyperparameters \lambda for all j=1,...,J
+
+        log_lik = lambda lam: self.llik(total_model_probs(lam), total_expert_probs, index)
+        
+        return -grad(log_lik, argnums=0)(lam) ## shape (m,1)
+    
+    
+    ## If we have multiple covariate sets (J), we need to sum the gradients (implemented with "grad_dirichlet_lambda", although "grad_dirichlet_lambda_2") would lead to the exact same results.
     
     def sum_grad_dirichlet_lambda(self, total_partitions, lam, total_expert_probs, total_covariates=None):
         
