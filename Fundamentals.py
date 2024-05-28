@@ -422,8 +422,7 @@ class optimize_ppe(Dirichlet): ### closed form is assumed!!!
                          step_size,
                          tol,
                          total_covariates=None,
-                         get_lik_progression = True,
-                         get_grad_norm_progression = False):
+                         get_lik_progression = True):
         
         lam_old = lam_0 ## initial value for the hyperparameters
         
@@ -432,7 +431,6 @@ class optimize_ppe(Dirichlet): ### closed form is assumed!!!
         total_covariates = total_covariates if total_covariates is not None else [None]*J ## If we have covariates we leave them as is, otherwise we replace them with a list of None
         
         lik_progression = []
-        grad_norm_progression = []
         
         for i in range(iters):
             
@@ -445,9 +443,7 @@ class optimize_ppe(Dirichlet): ### closed form is assumed!!!
             grad_dir_lam = self.sum_grad_dirichlet_lambda(total_partitions, lam_old, total_expert_probs, total_covariates)
                         
             lam_new = lam_old - step_size * grad_dir_lam
-            
-            grad_norm_progression.append(np.linalg.norm(grad_dir_lam))
-                        
+                                    
             curr_model_probs = [np.array(self.ppd_function(total_partitions[j], lam_new, total_covariates[j])) for j in range(J)]
                                     
             curr_lik = self.sum_llik(curr_model_probs, total_expert_probs)
