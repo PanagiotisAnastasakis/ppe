@@ -1,157 +1,159 @@
-from scipy.special import gamma, loggamma, digamma
 import numpy as np
 import os
 import pandas as pd
 import jax.numpy as jnp
-from jax import jacobian
+from jax import grad, jacobian
+from jax.scipy.special import gamma, gammaln
 
 
+## Class that contains functions related to the dirichlet distribution that are necessary to optimize the hyperparameters \lambda
 
 class Dirichlet:
     
     def __init__(self, alpha):
         self.alpha = alpha
         
+        
     ## In the following functions:
     
-    ## probs correspond to the prior predictive distribution probabilities
-    ## expert_probs correspond to the elicited probabilities from the expert
-    
     ## sample_probs and sample_expert_probs are the same quantities but for multiple sets of covariates (J), each of which may have different partitions
+    ## They are formatted as lists of arrays, with each array corresponding to one covariate set (thus J arrays in total)
     
     ## For both sample_probs and sample_expert_probs, the probabilities for each j = 1,...,J are in the j'th row
     
     
-    ## Function to calculate the approximation of the MLE of alpha for J=1
+    ## Function to calculate the approximation of the MLE of alpha 
         
-    def alpha_mle(self, probs, expert_probs):
+    def alpha_mle(self, total_model_probs, total_expert_probs):
         
-        #assert probs.ndim == 1 and expert_probs.ndim == 1, "This operation requires one set of probabilities only"
-        assert np.isclose(np.sum(probs), 1) and np.isclose(np.sum(expert_probs), 1), "Probabilities must sum to 1"
-        
-        K = len(probs)
-        
-        kl_divergence = - np.sum([probs[k]*(np.log(expert_probs[k]) - np.log(probs[k])) for k in range(K)])
-        
-        return (K/2 - 1/2) / kl_divergence
-    
-    
-    ## Function to calculate the same quantity for J>1
-        
-    def alpha_mle_multiple_samples(self, sample_probs, sample_expert_probs):
-        
-        J = len(sample_probs) if type(sample_probs[0]) in [list, np.ndarray] else 1
+        J = len(total_expert_probs) if type(total_expert_probs[0]) in [list, np.ndarray] else 1  ## Number of covariate sets implied from the input
                 
-        if J == 1: return self.alpha_mle(sample_probs, sample_expert_probs)
-                
-        assert np.all(np.isclose(np.array([np.sum(probs) for probs in sample_probs]), np.ones(J))) and np.all(np.isclose(np.array([np.sum(probs) for probs in sample_expert_probs]), np.ones(J))), "Probabilities must sum to 1"
+        ## If J=1, then we compute the MLE estimate of \alpha and return it    
         
+        if J == 1:
+            
+            assert jnp.isclose(jnp.sum(total_model_probs), 1) and jnp.isclose(jnp.sum(total_expert_probs), 1), "Probabilities must sum to 1"
+
+            K = len(total_model_probs)
+        
+            kl_divergence = - jnp.sum(jnp.array([total_model_probs[k]*(jnp.log(total_expert_probs[k]) - jnp.log(total_model_probs[k])) for k in range(K)]))
+                            
+            return (K/2 - 1/2) / kl_divergence
+        
+        
+        ## If J>1, we use a different formula
+        
+        assert jnp.all(jnp.isclose(jnp.array([jnp.sum(probs) for probs in total_model_probs]), jnp.ones(J))) and jnp.all(jnp.isclose(jnp.array([jnp.sum(probs) for probs in total_expert_probs]), jnp.ones(J))), "Probabilities must sum to 1"
+
         nom = 0
         den = 0
         
         for j in range(J):
             
-            n_j = len(sample_probs[j])
+            n_j = len(total_model_probs[j])
             
             nom += (n_j - 1)/2
             
-            kl_divergence = - np.sum([sample_probs[j][k]*(np.log(sample_expert_probs[j][k]) - np.log(sample_probs[j][k])) for k in range(n_j)])
+            kl_divergence = - jnp.sum(jnp.array([total_model_probs[j][k]*(jnp.log(total_expert_probs[j][k]) - jnp.log(total_model_probs[j][k])) for k in range(n_j)]))
             
             den += kl_divergence
             
         return nom / den
     
-    ## Simple function for the PDF of the Dirichet distribution
+    ## Simple function for the PDF of the Dirichet distribution (not used anywhere so far)
     
-    def pdf(self, probs, expert_probs):
+    def pdf(self, model_probs, expert_probs):
         
-        #assert probs.ndim == 1 and expert_probs.ndim == 1, "Pdf is defined for one set of probabilities only"
-        assert np.isclose(np.sum(probs), 1) and np.isclose(np.sum(expert_probs), 1), "Probabilities must sum to 1"
+        assert jnp.isclose(jnp.sum(model_probs), 1) and jnp.isclose(jnp.sum(expert_probs), 1), "Probabilities must sum to 1"
         
         reset = 0
         
         if self.alpha is None:
             reset = 1
-            self.alpha = self.alpha_mle_multiple_samples(probs, expert_probs)
+            self.alpha = self.alpha_mle(model_probs, expert_probs)
         
         num_1 = gamma(self.alpha)
-        den_1 = np.prod([gamma(self.alpha*prob) for prob in probs])
+        den_1 = np.prod([gamma(self.alpha*prob) for prob in model_probs])
         pt_1 = num_1 / den_1
                 
-        pt_2 = np.prod([expert_probs[i]**(self.alpha*probs[i] - 1) for i in range(len(probs))])
+        pt_2 = np.prod([expert_probs[i]**(self.alpha*model_probs[i] - 1) for i in range(len(model_probs))])
         
         if reset == 1: self.alpha = None
         
         return pt_1 * pt_2
     
     
-    ## Function for log likelihood for J=1
+    ## Function for log likelihood for J=1. We have as inputs sample_probs and sample_expert_probs and an index (j \in {1,...,J}).
+    ## If we have a fixed \alpha as input, we use this as input for the computation, alternatively we compute it according to the
+    ## MLE formula, using all the covariate sets (all j=1,...,J).
         
-    def llik(self, probs, expert_probs):
-                
-        #assert probs.ndim == 1 and expert_probs.ndim == 1, "Likelihood is defined for one set of probabilities only"
+    def llik(self, total_model_probs, total_expert_probs, index=None):
         
-        assert np.isclose(np.sum(probs), 1) and np.isclose(np.sum(expert_probs), 1), "Probabilities must sum to 1"
+        probs = total_model_probs[index] if index is not None else total_model_probs
+        expert_probs = total_expert_probs[index] if index is not None else total_expert_probs
         
         reset = 0
-        
+                
         if self.alpha is None:
             reset = 1
-            self.alpha = self.alpha_mle_multiple_samples(probs, expert_probs)
-        
-        loggamma_alpha = loggamma(self.alpha)
+            self.alpha = self.alpha_mle(total_model_probs, total_expert_probs)
+                                
+        loggamma_alpha = gammaln(self.alpha)
         
         num_1 = loggamma_alpha
-        den_1 = np.sum([loggamma_alpha + loggamma(prob) for prob in probs])
+        den_1 = np.sum(jnp.array([gammaln(self.alpha*probs)]))
         pt_1 = num_1 - den_1
         
-        pt_2 = np.sum([(self.alpha*probs[i] - 1) * np.log(expert_probs[i]) for i in range(len(probs))])
+        pt_2 = np.sum(jnp.array([(self.alpha*probs[i] - 1) * jnp.log(expert_probs[i]) for i in range(len(probs))]))
         
         if reset == 1: self.alpha = None
-        
+                                
         return pt_1 + pt_2
     
-    ## Sum of log-likelihoods. This will be used in later stages during optimization
     
-    def sum_llik(self, sample_probs: list, sample_expert_probs: list):
+    ## Sum of log-likelihoods for j=1,...,J. Same as before, \alpha is either fixed or computed using the MLE formula
+    
+    def sum_llik(self, total_model_probs: list, total_expert_probs: list):
         
-        J = len(sample_probs) if type(sample_probs[0]) in [list, np.ndarray] else 1
-                
-        if J == 1: return self.llik(sample_probs, sample_expert_probs)
+        J = len(total_model_probs) if type(total_model_probs[0]) in [list, np.ndarray] else 1
         
-        assert np.all(np.isclose(np.array([np.sum(probs) for probs in sample_probs]), np.ones(J))) and np.all(np.isclose(np.array([np.sum(probs) for probs in sample_expert_probs]), np.ones(J))), "Probabilities must sum to 1"
+        if J == 1: return self.llik(total_model_probs, total_expert_probs)
+        
+        assert np.all(np.isclose(np.array([np.sum(probs) for probs in total_model_probs]), np.ones(J))) and np.all(np.isclose(np.array([np.sum(probs) for probs in total_expert_probs]), np.ones(J))), "Probabilities must sum to 1"
         
         reset = 0
         
         if self.alpha is None:
             reset = 1
-            self.alpha = self.alpha_mle_multiple_samples(sample_probs, sample_expert_probs)
+            self.alpha = self.alpha_mle(total_model_probs, total_expert_probs)
         
         total_llik = 0
         
         for j in range(J):
             
-            total_llik += self.llik(sample_probs[j], sample_expert_probs[j])
+            total_llik += self.llik(total_model_probs, total_expert_probs, j)
             
         if reset == 1: self.alpha = None
             
         return total_llik
     
+    ## Function to compute the gradient of the dirichlet log likelihood for one specific index (one j \in {1,...,J})
+    ## with respect to this probability vector, using automatic differentiation. In order to compute this, we fix all other probabilitity vectors and
+    ## we define the log likelihood with respect to the vector with respect to which we compute the gradient.
+    ## This supports either fixed \alpha or using the MLE formula. In the latter case, the formula is dependent on the 
+    ## vector we take the derivative with, meaning that we eventually take the derivative of the MLE formula.
     
-    ### Function to compute the derivative of the dirichlet negtive log likelihood for one partition P_λ. It assumes a constant value for alpha.
-    ### Formula implemented according to T. P. Minka. Estimating a Dirichlet distribution, 2000.
-    
-    def grad_dirichlet_p(self, probs, expert_probs):
-    
-        sum_val = np.sum(probs*(np.log(expert_probs) - digamma(self.alpha*probs)))
-        
-        dlogD = np.zeros(len(probs))
-        
-        for i in range(len(probs)):
-        
-            dlogD[i] = len(probs)*self.alpha*(np.log(expert_probs[i]) - digamma(self.alpha*probs[i]) - sum_val)
+    def grad_dirichlet_p(self, total_model_probs, total_expert_probs, index=None):
             
-        return -np.array(dlogD)
+        def llik_index(sample_probs_index):
+        
+            # Replace the i-th probability vector in total_model_probs with total_model_probs[index], keeping the rest unchanged
+            sample_probs_index_new = total_model_probs[:index] + [sample_probs_index] + total_model_probs[index+1:]
+                        
+            return self.llik(sample_probs_index_new, total_expert_probs, index)
+        
+        # Compute the gradient of llik_index with respect to total_model_probs
+        return - grad(llik_index)(total_model_probs[index])
     
 
 
@@ -339,18 +341,22 @@ class optimize_ppe(Dirichlet): ### closed form is assumed!!!
         
     ### We assume that we have as input the prior probability distribution in closed form, for one partition.
     ### For instance, if Y~N(0,1) and we have a partition A=(a,b], then ppd = P(YεA) = Φ(b) - Φ(a)
-    ### This input ("ppd") is assumed to have two parameters: 
-    # 1) the partition (in the form of interval in the continuous case, or a single value in the discrete case)
+    ### This input ("ppd") is assumed to have three parameters: 
+    # 1) the partition (in the form of interval in the continuous case, or a single value in the discrete case).
     # 2) the hyperparameters "lam".
+    # 3( the covariates of the model, if any. If there aren't any covariates, "ppd" is only defined by the first two inputs.
     
-    ## To keep track of the dimensions, suppose that we have m hyperparameters and n partitions
+    ## To keep track of the dimensions, suppose that we have m hyperparameters and n partitions for a given covariate set j (j \in {1,...,J})
     
-    ## We also account for the presence of covariate sets. Specifically, we add in some functions a parameter called "covariates" that is a np.array
+    ## We also account for the presence of covariate sets. Specifically, we add in some functions a parameter called "covariates" that is an array
     ## and represents each individual covariate set. The parameter "total_covariates" represents the quantity that contains all covariate sets and
-    ## is either a list of covariate sets, or a np.array where each row corresponds to one covariate set. We initialize both parameters with None.
+    ## is either a list of covariate sets, or an array where each row corresponds to one covariate set. We initialize both parameters with None.
+    ## If there are no covariates in the data, we simply have None in their place and they are not included in any computation.
     
-    ## Here, we want to define the prior probability distribution for all partitions
+    
+    ## Here, we want to define the prior probability distribution for the partition of one covariate set j (j \in {1,...,J})).
     ## We will create an array that has as many components as there are partitions and contains in the i-th position the ppd for the i-th partition
+    ## It takes as an input the partition, the hyperparameters \lambda and the covariates (if any).
     
     def ppd_function(self, partitions, lam, covariates=None):
                 
@@ -362,7 +368,7 @@ class optimize_ppe(Dirichlet): ### closed form is assumed!!!
         
         return jnp.array(prior_pd)  # shape (n, 1)
         
-    ## Now, we compute the gradient (jacobian) of the prior probability distribution with respect to lambda
+    ## Now, we compute the gradient (jacobian) of the prior probability distribution with respect to \lambda for one covariate set j (j \in {1,...,J})).
     
     def grad_ppd_lambda(self, partitions, lam, covariates=None):
         
@@ -373,123 +379,80 @@ class optimize_ppe(Dirichlet): ### closed form is assumed!!!
             return jacobian(lambda lam: self.ppd_function(partitions, lam), argnums=0)(lam)  # shape (m, n)
     
     
-    ## Finally, we compute the dirichlet likelihood gradient with respect to lambda. This will be used to perform gradient descent
+    ## Finally, we compute the dirichlet likelihood gradient with respect to lambda. This will be used to perform gradient descent.
     
-    def grad_dirichlet_lambda(self, partitions, lam, expert_probs, covariates=None):
-        
-        model_probs = self.ppd_function(partitions, lam, covariates)
-        
-        grad_dir_p = self.grad_dirichlet_p(model_probs, expert_probs)
-                
-        dir_grad = self.grad_ppd_lambda(partitions, lam, covariates).T@(grad_dir_p.T)
-        
-        dir_grad = dir_grad.T
-        
-        return dir_grad ## shape (m,1)
     
-    ## Function for computing the derivative of -log(Dirichlet) with respect to alpha, for one covariate set (one set of partitions)
+    def grad_dirichlet_lambda(self, lam, total_partitions, total_covariates, total_expert_probs, index):
+        
+        J = len(total_expert_probs) if type(total_expert_probs[0]) in [list, np.ndarray] else 1  ## The number of covariate sets
+        
+        total_model_probs = [np.array(self.ppd_function(total_partitions[j], lam, total_covariates[j])) for j in range(J)]  ## The model probabilities given the hyperparameters \lambda for all j=1,...,J
+        
+        grad_dir_p = self.grad_dirichlet_p(total_model_probs, total_expert_probs, index)  ## The gradient of the Dirichlet llik with respect to the model probabilities for the j'th covariate set
+        
+        jac_p_lambda = self.grad_ppd_lambda(total_partitions[index], lam, total_covariates[index])
+        
+        dir_grad_lambda = jac_p_lambda.T@(grad_dir_p.T)
+        
+        dir_grad_lambda = dir_grad_lambda.T
+        
+        return dir_grad_lambda ## shape (m,1)
     
-    def grad_dirichlet_alpha(self, partitions, lam, expert_probs, covariates=None):
-        
-        model_probs = self.ppd_function(partitions, lam, covariates)
-        
-        dlogD = digamma(self.alpha) - np.sum(model_probs * digamma(self.alpha*model_probs)) + np.sum(model_probs * np.log(expert_probs))
-        
-        return - dlogD ## a scalar (shape (1,1))
     
     ## If we have multiple covariate sets (J), we need to sum the gradients
     
-    
     def sum_grad_dirichlet_lambda(self, total_partitions, lam, total_expert_probs, total_covariates=None):
         
-        ## We assume that total_partitions is a list of partitions
+        J = len(total_expert_probs) if type(total_expert_probs[0]) in [list, np.ndarray] else 1
+                
+        total_dir_grad_lambda = np.zeros(len(lam))
         
-        total_dir_grad = np.zeros(len(lam))
-        
-        for j in range(len(total_partitions)):
-            
-            covariates = total_covariates[j] if total_covariates is not None else None
+        for j in range(J):
+                        
+            total_dir_grad_lambda += self.grad_dirichlet_lambda(lam, total_partitions, total_covariates, total_expert_probs, j)
 
-            total_dir_grad += self.grad_dirichlet_lambda(total_partitions[j], lam, total_expert_probs[j], covariates)
-
-        return total_dir_grad ## shape (m,1)
+        return total_dir_grad_lambda ## shape (m,1)
     
-    ## Function to sum the derivates of -log(Dirichlet) with respect to alpha across all covariate sets
     
-    def sum_grad_dirichlet_alpha(self, total_partitions, lam, total_expert_probs, total_covariates=None):
-
-        total_dir_grad = 0
+    def gradient_descent(self,
+                         total_partitions,
+                         total_expert_probs,
+                         lam_0,
+                         iters,
+                         step_size,
+                         tol,
+                         total_covariates=None,
+                         get_lik_progression = True,
+                         get_grad_norm_progression = False):
         
-        for j in range(len(total_partitions)):
-            
-            covariates = total_covariates[j] if total_covariates is not None else None
-
-            total_dir_grad += self.grad_dirichlet_alpha(total_partitions[j], lam, total_expert_probs[j], covariates)
-
-        return total_dir_grad ## a scalar (shape (1,1))
-
-
-    
-    def gradient_descent(self, total_partitions, total_expert_probs, lam_0, iters, step_size, tol, total_covariates=None, get_lik_progression = True):
+        lam_old = lam_0 ## initial value for the hyperparameters
         
-        lam_old = lam_0
+        J = len(total_expert_probs) if type(total_expert_probs[0]) in [list, np.ndarray] else 1
+        
+        total_covariates = total_covariates if total_covariates is not None else [None]*J ## If we have covariates we leave them as is, otherwise we replace them with a list of None
         
         lik_progression = []
-        
-        ## If the input for alpha is None, then we simultaneously optimize the hyperparameters and alpha
-                
-        if self.alpha is None:
-            
-            self.alpha = 1 ### starting value for alpha
-                        
-            for i in range(iters):
-                
-                prev_model_probs = [np.array(self.ppd_function(partitions, lam_old, total_covariates[j] if total_covariates is not None else None)) for j, partitions in enumerate(total_partitions)]
-                
-                prev_lik = self.sum_llik(prev_model_probs, total_expert_probs)
-            
-                lik_progression.append(prev_lik)
-                            
-                lam_new = lam_old - step_size * self.sum_grad_dirichlet_lambda(total_partitions, lam_old, total_expert_probs, total_covariates)  ## update lam
-                
-                self.alpha = self.alpha - step_size * self.sum_grad_dirichlet_alpha(total_partitions, lam_new, total_expert_probs, total_covariates) ## update self.alpha using lam_new
-                
-                curr_model_probs = [np.array(self.ppd_function(partitions, lam_new, total_covariates[j] if total_covariates is not None else None)) for j, partitions in enumerate(total_partitions)]
-
-                curr_lik = self.sum_llik(curr_model_probs, total_expert_probs)
-                
-                if abs(curr_lik - prev_lik) < tol:
-                    break
-                
-                lam_old = lam_new
-            
-            final_alpha = self.alpha
-            
-            self.alpha = None ## resetting alpha to None
-            
-            if get_lik_progression:
-                return lam_new, final_alpha, -np.array(lik_progression)
-            
-            return lam_new, final_alpha
-                
-
-        ## If we have given an input for alpha, then we optimize only lambda
+        grad_norm_progression = []
         
         for i in range(iters):
             
-            prev_model_probs = [np.array(self.ppd_function(partitions, lam_old, total_covariates[j] if total_covariates is not None else None)) for j, partitions in enumerate(total_partitions)]
+            prev_model_probs = [np.array(self.ppd_function(total_partitions[j], lam_old, total_covariates[j])) for j in range(J)]
                 
             prev_lik = self.sum_llik(prev_model_probs, total_expert_probs)
             
             lik_progression.append(prev_lik)
-                        
-            lam_new = lam_old - step_size * self.sum_grad_dirichlet_lambda(total_partitions, lam_old, total_expert_probs, total_covariates)
-                        
-            curr_model_probs = [np.array(self.ppd_function(partitions, lam_new, total_covariates[j] if total_covariates is not None else None)) for j, partitions in enumerate(total_partitions)]
             
+            grad_dir_lam = self.sum_grad_dirichlet_lambda(total_partitions, lam_old, total_expert_probs, total_covariates)
+                        
+            lam_new = lam_old - step_size * grad_dir_lam
+            
+            grad_norm_progression.append(np.linalg.norm(grad_dir_lam))
+                        
+            curr_model_probs = [np.array(self.ppd_function(total_partitions[j], lam_new, total_covariates[j])) for j in range(J)]
+                                    
             curr_lik = self.sum_llik(curr_model_probs, total_expert_probs)
             
-            if abs(curr_lik - prev_lik) < tol:
+            if abs(curr_lik - prev_lik) < tol: ## Stopping criterion: the dirichlet log likelihood changes less than "tol" between two iterations
                 break
             
             lam_old = lam_new
@@ -500,13 +463,17 @@ class optimize_ppe(Dirichlet): ### closed form is assumed!!!
         
         return lam_new
     
-    ## Function to get alpha based on the optimized hyperparameters
+    ## Function to get the \alpha estimate based on the MLE formula, using as inputs the expert probabilities and
+    ## the partitions, hyperparameters lambda and covariate sets.
     
     def get_alpha(self, total_partitions, best_lam, total_expert_probs, total_covariates=None):
         
-        best_model_probs = [np.array(self.ppd_function(partitions, best_lam, total_covariates[j] if total_covariates is not None else None)) for j, partitions in enumerate(total_partitions)]
+        J = len(total_expert_probs) if type(total_expert_probs[0]) in [list, np.ndarray] else 1
+        total_covariates = total_covariates if total_covariates is not None else [None]*J
         
-        alpha = self.alpha_mle_multiple_samples(best_model_probs, total_expert_probs)
+        best_model_probs = [np.array(self.ppd_function(total_partitions[j], best_lam, total_covariates[j])) for j in range(J)]
+        
+        alpha = self.alpha_mle(best_model_probs, total_expert_probs)
     
         return alpha
- 
+      
