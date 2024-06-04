@@ -256,7 +256,7 @@ class PPEProbabilities:
         
         if self.target_type == "discrete":
                 
-            J = samples.shape[1] ## Each column in "samples" corresponds to one set of covariates
+            J = samples.shape[1] if type(samples[1]) in [list, np.ndarray] else 1 ## Each column in "samples" corresponds to one set of covariates
             
             N_samples = samples.shape[0]
             
@@ -271,7 +271,7 @@ class PPEProbabilities:
             
             for j in range(J):
                 
-                cov_set_j = samples[:,j]
+                cov_set_j = samples[:,j] if J>1 else samples
                 
                 probs_list = np.zeros(N_classes)
                 
@@ -285,7 +285,7 @@ class PPEProbabilities:
         if self.target_type == "continuous":
                         
             
-            J = samples.shape[1] ## Each column in "samples" corresponds to one set of covariates
+            J = samples.shape[1] if type(samples[1]) in [list, np.ndarray] else 1 ## Each column in "samples" corresponds to one set of covariates
     
             N_samples = samples.shape[0]
                 
@@ -297,8 +297,9 @@ class PPEProbabilities:
             for j in range(J):
                 
                 
-                partition = np.copy(partitions[j])
-                cov_set_j = samples[:,j]
+                partition = np.copy(partitions[j]) if J>1 else np.copy(partitions)
+                
+                cov_set_j = samples[:,j] if J>1 else samples
                 
                 N_partitions = partition.shape[0]
                 
