@@ -13,7 +13,7 @@ class Dirichlet:
     def __init__(self, alpha):
         self.alpha = alpha
         
-        
+    
     ## In the following functions:
     
     ## sample_probs and sample_expert_probs are the same quantities but for multiple sets of covariates (J), each of which may have different partitions
@@ -24,14 +24,19 @@ class Dirichlet:
     
     ## Function to calculate the approximation of the MLE of alpha 
         
-    def alpha_mle(self, total_model_probs, total_expert_probs):
+    def alpha_mle(self, total_model_probs, total_expert_probs, index = None):
         
         J = len(total_expert_probs) if type(total_expert_probs[0]) in [list, np.ndarray] else 1  ## Number of covariate sets implied from the input
+        
+        
                 
         ## If J=1, then we compute the MLE estimate of \alpha and return it    
         
         if J == 1:
             
+            total_model_probs = total_model_probs[index] if index is not None else total_model_probs
+            total_expert_probs = total_expert_probs[index] if index is not None else total_expert_probs
+                                    
             assert jnp.isclose(jnp.sum(total_model_probs), 1) and jnp.isclose(jnp.sum(total_expert_probs), 1), "Probabilities must sum to 1"
 
             K = len(total_model_probs)
@@ -91,12 +96,12 @@ class Dirichlet:
         
         probs = total_model_probs[index] if index is not None else total_model_probs
         expert_probs = total_expert_probs[index] if index is not None else total_expert_probs
-        
+                
         reset = 0
                 
         if self.alpha is None:
             reset = 1
-            self.alpha = self.alpha_mle(total_model_probs, total_expert_probs)
+            self.alpha = self.alpha_mle(total_model_probs, total_expert_probs, index)
                                 
         loggamma_alpha = gammaln(self.alpha)
         
@@ -117,7 +122,7 @@ class Dirichlet:
         
         J = len(total_model_probs) if type(total_model_probs[0]) in [list, np.ndarray] else 1
         
-        if J == 1: return self.llik(total_model_probs, total_expert_probs)
+        if J == 1: return self.llik(total_model_probs, total_expert_probs, index = 0)
         
         assert np.all(np.isclose(np.array([np.sum(probs) for probs in total_model_probs]), np.ones(J))) and np.all(np.isclose(np.array([np.sum(probs) for probs in total_expert_probs]), np.ones(J))), "Probabilities must sum to 1"
         
@@ -374,14 +379,13 @@ class optimize_ppe(Dirichlet): ### closed form is assumed!!!
     def grad_ppd_lambda(self, partitions, lam, covariates=None):
         
         if covariates is not None:
-            return jacobian(lambda lam: self.ppd_function(partitions, lam, covariates), argnums=0)(lam)  # shape (n, m)
+            return jacobian(lambda lam: self.ppd_function(partitions, lam, covariates), argnums=0)(lam)  # shape (m, n)
         
         else:
-            return jacobian(lambda lam: self.ppd_function(partitions, lam), argnums=0)(lam)  # shape (n, m)
+            return jacobian(lambda lam: self.ppd_function(partitions, lam), argnums=0)(lam)  # shape (m, n)
     
     
     ## Finally, we compute the dirichlet likelihood gradient with respect to lambda. This will be used to perform gradient descent.
-    
     
     def grad_dirichlet_lambda(self, lam, total_partitions, total_covariates, total_expert_probs, index):
         
@@ -399,7 +403,6 @@ class optimize_ppe(Dirichlet): ### closed form is assumed!!!
         
         return dir_grad_lambda ## shape (m,1)
     
-    
     ## Alternative computation of the dirichlet likelihood gradient with respect to \lambda. Here, we define the likelihood with
     ## respect to \lambda and we take the gradient right away, without the need of further computations and the use of chain rule. 
     
@@ -414,7 +417,7 @@ class optimize_ppe(Dirichlet): ### closed form is assumed!!!
         return -grad(log_lik, argnums=0)(lam) ## shape (m,1)
     
     
-    ## If we have multiple covariate sets (J), we need to sum the gradients (implemented with "grad_dirichlet_lambda", although "grad_dirichlet_lambda_2" would lead to the same results).
+    ## If we have multiple covariate sets (J), we need to sum the gradients (implemented with "grad_dirichlet_lambda", although "grad_dirichlet_lambda_2") would lead to the exact same results.
     
     def sum_grad_dirichlet_lambda(self, total_partitions, lam, total_expert_probs, total_covariates=None):
         
@@ -449,8 +452,8 @@ class optimize_ppe(Dirichlet): ### closed form is assumed!!!
         
         for i in range(iters):
             
-            prev_model_probs = [np.array(self.ppd_function(total_partitions[j], lam_old, total_covariates[j])) for j in range(J)]
-                
+            prev_model_probs = [np.array(self.ppd_function(total_partitions[j], lam_old, total_covariates[j])) for j in range(J)] #if J>1 else np.array(self.ppd_function(total_partitions, lam_old, total_covariates))
+                                
             prev_lik = self.sum_llik(prev_model_probs, total_expert_probs)
             
             lik_progression.append(prev_lik)
@@ -458,9 +461,9 @@ class optimize_ppe(Dirichlet): ### closed form is assumed!!!
             grad_dir_lam = self.sum_grad_dirichlet_lambda(total_partitions, lam_old, total_expert_probs, total_covariates)
                         
             lam_new = lam_old - step_size * grad_dir_lam
-                                    
-            curr_model_probs = [np.array(self.ppd_function(total_partitions[j], lam_new, total_covariates[j])) for j in range(J)]
-                                    
+                                
+            curr_model_probs = [np.array(self.ppd_function(total_partitions[j], lam_new, total_covariates[j])) for j in range(J)]# if J>1 else np.array(self.ppd_function(total_partitions, lam_new, total_covariates))
+                                                
             curr_lik = self.sum_llik(curr_model_probs, total_expert_probs)
             
             if abs(curr_lik - prev_lik) < tol: ## Stopping criterion: the dirichlet log likelihood changes less than "tol" between two iterations
@@ -484,7 +487,9 @@ class optimize_ppe(Dirichlet): ### closed form is assumed!!!
         
         best_model_probs = [np.array(self.ppd_function(total_partitions[j], best_lam, total_covariates[j])) for j in range(J)]
         
-        alpha = self.alpha_mle(best_model_probs, total_expert_probs)
+        index = 0 if J==1 else None
+        
+        alpha = self.alpha_mle(best_model_probs, total_expert_probs, index=index)
     
         return alpha
       
