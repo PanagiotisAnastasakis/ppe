@@ -374,10 +374,10 @@ class optimize_ppe(Dirichlet): ### closed form is assumed!!!
     def grad_ppd_lambda(self, partitions, lam, covariates=None):
         
         if covariates is not None:
-            return jacobian(lambda lam: self.ppd_function(partitions, lam, covariates), argnums=0)(lam)  # shape (m, n)
+            return jacobian(lambda lam: self.ppd_function(partitions, lam, covariates), argnums=0)(lam)  # shape (n, m)
         
         else:
-            return jacobian(lambda lam: self.ppd_function(partitions, lam), argnums=0)(lam)  # shape (m, n)
+            return jacobian(lambda lam: self.ppd_function(partitions, lam), argnums=0)(lam)  # shape (n, m)
     
     
     ## Finally, we compute the dirichlet likelihood gradient with respect to lambda. This will be used to perform gradient descent.
