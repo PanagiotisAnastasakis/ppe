@@ -10,8 +10,9 @@ from jax.scipy.special import gamma, gammaln
 
 class Dirichlet:
     
-    def __init__(self, alpha):
+    def __init__(self, alpha, J):
         self.alpha = alpha
+        self.J = J
         
     
     ## In the following functions:
@@ -24,15 +25,12 @@ class Dirichlet:
     
     ## Function to calculate the approximation of the MLE of alpha 
         
-    def alpha_mle(self, total_model_probs, total_expert_probs, index = None):
-        
-        J = len(total_expert_probs) if type(total_expert_probs[0]) in [list, np.ndarray] else 1  ## Number of covariate sets implied from the input
-        
+    def alpha_mle(self, total_model_probs, total_expert_probs, index = None):        
         
                 
         ## If J=1, then we compute the MLE estimate of \alpha and return it    
         
-        if J == 1:
+        if self.J == 1:
             
             ## If J=1, then it is possible that the probabilities are encapsulated in a list, meaning that if we have e.g. prob = [0.5,0.5],
             ## the actual input is [[0.5, 0.5]]. In such a case, the parameter "index" will be 0 and the following two lines of code remove the outer list
@@ -51,12 +49,12 @@ class Dirichlet:
         
         ## If J>1, we use a different formula
         
-        assert jnp.all(jnp.isclose(jnp.array([jnp.sum(probs) for probs in total_model_probs]), jnp.ones(J))) and jnp.all(jnp.isclose(jnp.array([jnp.sum(probs) for probs in total_expert_probs]), jnp.ones(J))), "Probabilities must sum to 1"
+        assert jnp.all(jnp.isclose(jnp.array([jnp.sum(probs) for probs in total_model_probs]), jnp.ones(self.J))) and jnp.all(jnp.isclose(jnp.array([jnp.sum(probs) for probs in total_expert_probs]), jnp.ones(self.J))), "Probabilities must sum to 1"
 
         nom = 0
         den = 0
         
-        for j in range(J):
+        for j in range(self.J):
             
             n_j = len(total_model_probs[j])
             
@@ -99,12 +97,14 @@ class Dirichlet:
         
         probs = total_model_probs[index] if index is not None else total_model_probs
         expert_probs = total_expert_probs[index] if index is not None else total_expert_probs
-                
+        
+        assert jnp.all(jnp.isclose(jnp.array([jnp.sum(probs) for probs in total_model_probs]), jnp.ones(self.J))) and jnp.all(jnp.isclose(jnp.array([jnp.sum(probs) for probs in total_expert_probs]), jnp.ones(self.J))), "Probabilities must sum to 1"
+
         reset = 0
                 
         if self.alpha is None:
             reset = 1
-            self.alpha = self.alpha_mle(total_model_probs, total_expert_probs, index)
+            self.alpha = self.alpha_mle(total_model_probs, total_expert_probs, index) ## we include all the probabilities to compute alpha!
                                 
         loggamma_alpha = gammaln(self.alpha)
         
@@ -122,12 +122,10 @@ class Dirichlet:
     ## Sum of log-likelihoods for j=1,...,J. Same as before, \alpha is either fixed or computed using the MLE formula
     
     def sum_llik(self, total_model_probs: list, total_expert_probs: list):
+                
+        if self.J == 1: return self.llik(total_model_probs, total_expert_probs, index = 0)
         
-        J = len(total_model_probs) if type(total_model_probs[0]) in [list, np.ndarray] else 1
-        
-        if J == 1: return self.llik(total_model_probs, total_expert_probs, index = 0)
-        
-        assert np.all(np.isclose(np.array([np.sum(probs) for probs in total_model_probs]), np.ones(J))) and np.all(np.isclose(np.array([np.sum(probs) for probs in total_expert_probs]), np.ones(J))), "Probabilities must sum to 1"
+        assert jnp.all(jnp.isclose(jnp.array([jnp.sum(probs) for probs in total_model_probs]), jnp.ones(self.J))) and jnp.all(jnp.isclose(jnp.array([jnp.sum(probs) for probs in total_expert_probs]), jnp.ones(self.J))), "Probabilities must sum to 1"
         
         reset = 0
         
@@ -137,7 +135,7 @@ class Dirichlet:
         
         total_llik = 0
         
-        for j in range(J):
+        for j in range(self.J):
             
             total_llik += self.llik(total_model_probs, total_expert_probs, j)
             
@@ -346,8 +344,8 @@ class PPEProbabilities:
     
 class optimize_ppe(Dirichlet): ### closed form is assumed!!!
     
-    def __init__(self, alpha, ppd):
-        super().__init__(alpha)
+    def __init__(self, alpha, J, ppd):
+        super().__init__(alpha, J)
         self.ppd = ppd
         
     ### We assume that we have as input the prior probability distribution in closed form, for one partition.
@@ -393,10 +391,8 @@ class optimize_ppe(Dirichlet): ### closed form is assumed!!!
     ## Finally, we compute the dirichlet likelihood gradient with respect to lambda. This will be used to perform gradient descent.
     
     def grad_dirichlet_lambda(self, lam, total_partitions, total_covariates, total_expert_probs, index):
-        
-        J = len(total_expert_probs) if type(total_expert_probs[0]) in [list, np.ndarray] else 1  ## The number of covariate sets
-        
-        total_model_probs = [np.array(self.ppd_function(total_partitions[j], lam, total_covariates[j])) for j in range(J)]  ## The model probabilities given the hyperparameters \lambda for all j=1,...,J
+                
+        total_model_probs = [np.array(self.ppd_function(total_partitions[j], lam, total_covariates[j])) for j in range(self.J)]  ## The model probabilities given the hyperparameters \lambda for all j=1,...,J
         
         grad_dir_p = self.grad_dirichlet_p(total_model_probs, total_expert_probs, index)  ## The gradient of the Dirichlet llik with respect to the model probabilities for the j'th covariate set
         
@@ -413,9 +409,7 @@ class optimize_ppe(Dirichlet): ### closed form is assumed!!!
     
     def grad_dirichlet_lambda_2(self, lam, total_partitions, total_covariates, total_expert_probs, index):
         
-        J = len(total_expert_probs) if type(total_expert_probs[0]) in [list, np.ndarray] else 1  ## The number of covariate sets
-
-        total_model_probs = lambda lam: [jnp.array(self.ppd_function(total_partitions[j], lam, total_covariates[j])) for j in range(J)]  ## The model probabilities given the hyperparameters \lambda for all j=1,...,J
+        total_model_probs = lambda lam: [jnp.array(self.ppd_function(total_partitions[j], lam, total_covariates[j])) for j in range(self.J)]  ## The model probabilities given the hyperparameters \lambda for all j=1,...,J
 
         log_lik = lambda lam: self.llik(total_model_probs(lam), total_expert_probs, index)
         
@@ -425,12 +419,10 @@ class optimize_ppe(Dirichlet): ### closed form is assumed!!!
     ## If we have multiple covariate sets (J), we need to sum the gradients (implemented with "grad_dirichlet_lambda", although "grad_dirichlet_lambda_2") would lead to the exact same results.
     
     def sum_grad_dirichlet_lambda(self, total_partitions, lam, total_expert_probs, total_covariates=None):
-        
-        J = len(total_expert_probs) if type(total_expert_probs[0]) in [list, np.ndarray] else 1
-                
+                        
         total_dir_grad_lambda = np.zeros(len(lam))
         
-        for j in range(J):
+        for j in range(self.J):
                         
             total_dir_grad_lambda += self.grad_dirichlet_lambda(lam, total_partitions, total_covariates, total_expert_probs, j)
 
@@ -448,16 +440,14 @@ class optimize_ppe(Dirichlet): ### closed form is assumed!!!
                          get_lik_progression = True):
         
         lam_old = lam_0 ## initial value for the hyperparameters
-        
-        J = len(total_expert_probs) if type(total_expert_probs[0]) in [list, np.ndarray] else 1
-        
-        total_covariates = total_covariates if total_covariates is not None else [None]*J ## If we have covariates we leave them as is, otherwise we replace them with a list of None
+                
+        total_covariates = total_covariates if total_covariates is not None else [None]*self.J ## If we have covariates we leave them as is, otherwise we replace them with a list of None
         
         lik_progression = []
         
         for i in range(iters):
             
-            prev_model_probs = [np.array(self.ppd_function(total_partitions[j], lam_old, total_covariates[j])) for j in range(J)] #if J>1 else np.array(self.ppd_function(total_partitions, lam_old, total_covariates))
+            prev_model_probs = [np.array(self.ppd_function(total_partitions[j], lam_old, total_covariates[j])) for j in range(self.J)] 
                                 
             prev_lik = self.sum_llik(prev_model_probs, total_expert_probs)
             
@@ -467,7 +457,7 @@ class optimize_ppe(Dirichlet): ### closed form is assumed!!!
                         
             lam_new = lam_old - step_size * grad_dir_lam
                                 
-            curr_model_probs = [np.array(self.ppd_function(total_partitions[j], lam_new, total_covariates[j])) for j in range(J)]# if J>1 else np.array(self.ppd_function(total_partitions, lam_new, total_covariates))
+            curr_model_probs = [np.array(self.ppd_function(total_partitions[j], lam_new, total_covariates[j])) for j in range(self.J)]
                                                 
             curr_lik = self.sum_llik(curr_model_probs, total_expert_probs)
             
@@ -487,12 +477,11 @@ class optimize_ppe(Dirichlet): ### closed form is assumed!!!
     
     def get_alpha(self, total_partitions, best_lam, total_expert_probs, total_covariates=None):
         
-        J = len(total_expert_probs) if type(total_expert_probs[0]) in [list, np.ndarray] else 1
-        total_covariates = total_covariates if total_covariates is not None else [None]*J
+        total_covariates = total_covariates if total_covariates is not None else [None]*self.J
         
-        best_model_probs = [np.array(self.ppd_function(total_partitions[j], best_lam, total_covariates[j])) for j in range(J)]
+        best_model_probs = [np.array(self.ppd_function(total_partitions[j], best_lam, total_covariates[j])) for j in range(self.J)]
         
-        index = 0 if J==1 else None
+        index = 0 if self.J==1 else None
         
         alpha = self.alpha_mle(best_model_probs, total_expert_probs, index=index)
     
