@@ -34,6 +34,9 @@ class Dirichlet:
         
         if J == 1:
             
+            ## If J=1, then it is possible that the probabilities are encapsulated in a list, meaning that if we have e.g. prob = [0.5,0.5],
+            ## the actual input is [[0.5, 0.5]]. In such a case, the parameter "index" will be 0 and the following two lines of code remove the outer list
+            
             total_model_probs = total_model_probs[index] if index is not None else total_model_probs
             total_expert_probs = total_expert_probs[index] if index is not None else total_expert_probs
                                     
