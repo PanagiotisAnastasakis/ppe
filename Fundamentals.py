@@ -42,7 +42,7 @@ class Dirichlet:
 
             K = len(total_model_probs)
         
-            kl_divergence = - jnp.sum(jnp.array([total_model_probs[k]*(jnp.log(total_expert_probs[k]) - jnp.log(total_model_probs[k])) for k in range(K)]))
+            kl_divergence = - jnp.sum(total_model_probs*(jnp.log(total_expert_probs) - jnp.log(total_model_probs)))
                             
             return (K/2 - 1/2) / kl_divergence
         
@@ -60,7 +60,7 @@ class Dirichlet:
             
             nom += (n_j - 1)/2
             
-            kl_divergence = - jnp.sum(jnp.array([total_model_probs[j][k]*(jnp.log(total_expert_probs[j][k]) - jnp.log(total_model_probs[j][k])) for k in range(n_j)]))
+            kl_divergence = - jnp.sum(total_model_probs[j]*(jnp.log(total_expert_probs[j]) - jnp.log(total_model_probs[j])))
             
             den += kl_divergence
             
