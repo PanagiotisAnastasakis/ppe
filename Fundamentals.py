@@ -79,10 +79,10 @@ class Dirichlet:
             self.alpha = self.alpha_mle(model_probs, expert_probs)
         
         num_1 = gamma(self.alpha)
-        den_1 = np.prod([gamma(self.alpha*prob) for prob in model_probs])
+        den_1 = jnp.prod([gamma(self.alpha*prob) for prob in model_probs])
         pt_1 = num_1 / den_1
                 
-        pt_2 = np.prod([expert_probs[i]**(self.alpha*model_probs[i] - 1) for i in range(len(model_probs))])
+        pt_2 = jnp.prod([expert_probs[i]**(self.alpha*model_probs[i] - 1) for i in range(len(model_probs))])
         
         if reset == 1: self.alpha = None
         
@@ -109,10 +109,10 @@ class Dirichlet:
         loggamma_alpha = gammaln(self.alpha)
         
         num_1 = loggamma_alpha
-        den_1 = np.sum(jnp.array([gammaln(self.alpha*probs)]))
+        den_1 = jnp.sum(jnp.array([gammaln(self.alpha*probs)]))
         pt_1 = num_1 - den_1
         
-        pt_2 = np.sum(jnp.array([(self.alpha*probs[i] - 1) * jnp.log(expert_probs[i]) for i in range(len(probs))]))
+        pt_2 = jnp.sum(jnp.array([(self.alpha*probs[i] - 1) * jnp.log(expert_probs[i]) for i in range(len(probs))]))
         
         if reset == 1: self.alpha = None
                                 
@@ -166,9 +166,10 @@ class Dirichlet:
 
 class PPEProbabilities:
     
-    def __init__(self, target_type, path):
+    def __init__(self, target_type, path, J):
         self.target_type = target_type
         self.path = path
+        self.J = J
         
     def get_expert_data(self, expert_input):        
         
@@ -195,7 +196,7 @@ class PPEProbabilities:
                         
                         elicited_covariate_sets.append(elicited_covariate_set)
                         
-                    elicited_data = np.zeros((elicited_covariate_sets[0].shape[0], len(elicited_covariate_sets) + 1))
+                    elicited_data = jnp.zeros((elicited_covariate_sets[0].shape[0], len(elicited_covariate_sets) + 1))
                     
                     elicited_data[:,0] = elicited_covariate_sets[0][:,0]
                     
@@ -262,7 +263,7 @@ class PPEProbabilities:
         
         if self.target_type == "discrete":
                 
-            J = samples.shape[1] if type(samples[1]) in [list, np.ndarray] else 1 ## Each column in "samples" corresponds to one set of covariates
+            #J = samples.shape[1] if type(samples[1]) in [list, np.ndarray] else 1 ## Each column in "samples" corresponds to one set of covariates
             
             N_samples = samples.shape[0]
             
@@ -275,15 +276,15 @@ class PPEProbabilities:
             model_probabilities = []
             
             
-            for j in range(J):
+            for j in range(self.J):
                 
-                cov_set_j = samples[:,j] if J>1 else samples
+                cov_set_j = samples[:,j] if self.J>1 else samples
                 
-                probs_list = np.zeros(N_classes)
+                probs_list = jnp.zeros(N_classes)
                 
                 for i,C in enumerate(partitions):
                                         
-                    probs_list[i] = np.sum(cov_set_j == C) / N_samples
+                    probs_list[i] = jnp.sum(cov_set_j == C) / N_samples
                                     
                 model_probabilities.append(probs_list)
                 
@@ -291,7 +292,7 @@ class PPEProbabilities:
         if self.target_type == "continuous":
                         
             
-            J = samples.shape[1] if type(samples[1]) in [list, np.ndarray] else 1 ## Each column in "samples" corresponds to one set of covariates
+            #J = samples.shape[1] if type(samples[1]) in [list, np.ndarray] else 1 ## Each column in "samples" corresponds to one set of covariates
     
             N_samples = samples.shape[0]
                 
@@ -300,12 +301,12 @@ class PPEProbabilities:
             
             model_probabilities = []
             
-            for j in range(J):
+            for j in range(self.J):
                 
                 
-                partition = np.copy(partitions[j]) if J>1 else np.copy(partitions)
+                partition = jnp.copy(partitions[j]) if self.J>1 else jnp.copy(partitions)
                 
-                cov_set_j = samples[:,j] if J>1 else samples
+                cov_set_j = samples[:,j] if self.J>1 else samples
                 
                 N_partitions = partition.shape[0]
                 
@@ -313,8 +314,8 @@ class PPEProbabilities:
                 ## E.g. if the lower bound among all partitions is 15 and we sample the value 12, the new lower bound will be 12
                 ## This however should not happen too often in the sampling process, as the lower and upper bounds should be wide enough to contain all samples
 
-                sample_min = np.min(cov_set_j)
-                sample_max = np.max(cov_set_j)
+                sample_min = jnp.min(cov_set_j)
+                sample_max = jnp.max(cov_set_j)
                 
                 if partition[0,0] > sample_min:
                     partition[0,0] = sample_min
@@ -322,14 +323,14 @@ class PPEProbabilities:
                 if partition[-1,1] < sample_max:
                     partition[-1,1] = sample_max
                     
-                probs_list = np.zeros(N_partitions)
+                probs_list = jnp.zeros(N_partitions)
                     
                 for i in range(N_partitions):
                     
                     lower_bound = partition[i][0]
                     upper_bound = partition[i][1]
                                         
-                    count = np.sum((cov_set_j >= lower_bound) & (cov_set_j <= upper_bound))
+                    count = jnp.sum((cov_set_j >= lower_bound) & (cov_set_j <= upper_bound))
                     
                     probs_list[i] = count / N_samples
                                             
@@ -392,7 +393,7 @@ class optimize_ppe(Dirichlet): ### closed form is assumed!!!
     
     def grad_dirichlet_lambda(self, lam, total_partitions, total_covariates, total_expert_probs, index):
                 
-        total_model_probs = [np.array(self.ppd_function(total_partitions[j], lam, total_covariates[j])) for j in range(self.J)]  ## The model probabilities given the hyperparameters \lambda for all j=1,...,J
+        total_model_probs = [jnp.array(self.ppd_function(total_partitions[j], lam, total_covariates[j])) for j in range(self.J)]  ## The model probabilities given the hyperparameters \lambda for all j=1,...,J
         
         grad_dir_p = self.grad_dirichlet_p(total_model_probs, total_expert_probs, index)  ## The gradient of the Dirichlet llik with respect to the model probabilities for the j'th covariate set
         
@@ -420,7 +421,7 @@ class optimize_ppe(Dirichlet): ### closed form is assumed!!!
     
     def sum_grad_dirichlet_lambda(self, total_partitions, lam, total_expert_probs, total_covariates=None):
                         
-        total_dir_grad_lambda = np.zeros(len(lam))
+        total_dir_grad_lambda = jnp.zeros(len(lam))
         
         for j in range(self.J):
                         
@@ -449,7 +450,7 @@ class optimize_ppe(Dirichlet): ### closed form is assumed!!!
         
         for i in range(iters):
             
-            prev_model_probs = [np.array(self.ppd_function(total_partitions[j], lam_old, total_covariates[j])) for j in range(self.J)] 
+            prev_model_probs = [jnp.array(self.ppd_function(total_partitions[j], lam_old, total_covariates[j])) for j in range(self.J)] 
                                 
             prev_lik = self.sum_llik(prev_model_probs, total_expert_probs)
             
@@ -457,11 +458,11 @@ class optimize_ppe(Dirichlet): ### closed form is assumed!!!
             
             grad_dir_lam = self.sum_grad_dirichlet_lambda(total_partitions, lam_old, total_expert_probs, total_covariates)
             
-            grad_progression.append(np.linalg.norm(grad_dir_lam))
+            grad_progression.append(jnp.linalg.norm(grad_dir_lam))
                         
             lam_new = lam_old - step_size * grad_dir_lam
                                 
-            curr_model_probs = [np.array(self.ppd_function(total_partitions[j], lam_new, total_covariates[j])) for j in range(self.J)]
+            curr_model_probs = [jnp.array(self.ppd_function(total_partitions[j], lam_new, total_covariates[j])) for j in range(self.J)]
                                                 
             curr_lik = self.sum_llik(curr_model_probs, total_expert_probs)
             
@@ -483,7 +484,7 @@ class optimize_ppe(Dirichlet): ### closed form is assumed!!!
         
         total_covariates = total_covariates if total_covariates is not None else [None]*self.J
         
-        best_model_probs = [np.array(self.ppd_function(total_partitions[j], best_lam, total_covariates[j])) for j in range(self.J)]
+        best_model_probs = [jnp.array(self.ppd_function(total_partitions[j], best_lam, total_covariates[j])) for j in range(self.J)]
         
         index = 0 if self.J==1 else None
         
