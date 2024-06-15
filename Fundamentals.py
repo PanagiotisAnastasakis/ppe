@@ -4,6 +4,9 @@ import pandas as pd
 import jax.numpy as jnp
 from jax import grad, jacobian
 from jax.scipy.special import gamma, gammaln
+from ax import optimize
+import scipy.stats as sps
+import pymc as pm
 
 
 ## Class that contains functions related to the dirichlet distribution that are necessary to optimize the hyperparameters \lambda
@@ -501,4 +504,114 @@ class optimize_ppe(Dirichlet): ### closed form is assumed!!!
         alpha = self.alpha_mle(best_model_probs, total_expert_probs, index=index)
     
         return alpha
-      
+
+
+
+class Bayesian_Optimization_PO(Dirichlet, PPEProbabilities):
+    
+    def __init__(self, pymc_sampling_func, J, alpha, target_type, target_samples = 500):
+        Dirichlet.__init__(self, alpha, J)
+        PPEProbabilities.__init__(self, target_type, path=False)
+        self.pymc_sampling_func = pymc_sampling_func
+        self.target_samples = target_samples
+        
+    def get_model_probs(self, lam, partitions):
+        
+        idata = self.pymc_sampling_func(lam, self.target_samples)
+        
+        prior_predictive_samples = idata.prior_predictive["Y_obs"][0]
+        
+        samples_list = [prior_predictive_samples[:, j] for j in range(self.J)] if self.J>1 else prior_predictive_samples
+        
+        samples = np.vstack(samples_list).T if self.J>1 else samples_list
+        
+        model_probs = self.ppd_probs(samples = samples, partitions = partitions)
+        
+        return model_probs
+        
+            
+    def dirichlet_neg_llik(self, lam, partitions, expert_probs):
+        
+        model_probs = self.get_model_probs(lam, partitions)
+        
+        reset = 0
+        if self.alpha is None:
+            self.alpha = lam["alpha"]
+            reset = 1
+                        
+        dir_llik = self.sum_llik(total_model_probs=model_probs, total_expert_probs=expert_probs)
+        
+        if reset == 1:
+            self.alpha = None
+            
+        print("DIR:", dir_llik)
+
+        return float(-dir_llik)
+    
+    def hyperprior_llik(self, lam, param_bounds, param_expected_vals, param_weights):
+                
+        llik = 0
+                
+        param_values = list(lam.values())
+        
+        for m in range(len(param_values)):
+                        
+            if param_expected_vals[m] is not None:
+            
+                bound = param_bounds[m]
+                range_length = bound[1]- bound[0]
+                
+                mu = param_expected_vals[m]
+                
+                lower_trunc_normal = mu - range_length/2
+                upper_trunc_normal = mu + range_length/2
+                
+                sigma = (upper_trunc_normal - lower_trunc_normal)/2  ## same as range_length/2
+                                
+                param_llik = sps.truncnorm.logpdf(param_values[m], loc = mu, scale = sigma, a = lower_trunc_normal, b = upper_trunc_normal)
+                
+                if np.isinf(param_llik):
+                    continue
+                
+                llik += param_llik * param_weights[m] * self.J
+                
+        print("Params:", llik)
+                
+        return float(-llik)
+    
+    
+    
+    def optimize_hyperparams(self,
+                             param_names: list,
+                             param_bounds: list,
+                             param_expected_vals: list,
+                             param_weights: list,
+                             partitions: np.ndarray,
+                             expert_probs: list,
+                             n_trials = 100):
+        
+        dir_neg_llik = lambda lam: self.dirichlet_neg_llik(lam, partitions, expert_probs) + self.hyperprior_llik(lam, param_bounds, param_expected_vals, param_weights)
+        
+        parameters = [{"name": name_, "type": type_, "bounds": bound_} for name_, type_, bound_ in zip(param_names, ["range"]*len(param_names), param_bounds)]
+        
+        best_lam, values, experiment, model = optimize(
+            parameters=parameters,
+            evaluation_function = dir_neg_llik,
+            objective_name='Dirichlet_negative_log_likelihood',
+            minimize=True,
+            total_trials=n_trials
+            )
+        
+        return best_lam
+    
+            
+    def eval_function(self, lam, partitions, expert_probs):
+        
+        model_probs = self.get_model_probs(lam, partitions)
+        
+        index = 0 if self.J == 1 else None
+        
+        alpha = self.alpha_mle(total_model_probs=model_probs, total_expert_probs=expert_probs, index=index)
+        
+        return alpha
+
