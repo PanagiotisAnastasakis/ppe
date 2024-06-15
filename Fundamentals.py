@@ -507,7 +507,7 @@ class optimize_ppe(Dirichlet): ### closed form is assumed!!!
 
 
 
-class Bayesian_Optimization_PO(Dirichlet, PPEProbabilities):
+class Bayesian_Optimization(Dirichlet, PPEProbabilities):
     
     def __init__(self, pymc_sampling_func, J, alpha, target_type, target_samples = 500):
         Dirichlet.__init__(self, alpha, J)
