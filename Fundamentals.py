@@ -544,8 +544,6 @@ class Bayesian_Optimization_PO(Dirichlet, PPEProbabilities):
         if reset == 1:
             self.alpha = None
             
-        print("DIR:", dir_llik)
-
         return float(-dir_llik)
     
     def hyperprior_llik(self, lam, param_bounds, param_expected_vals, param_weights):
@@ -574,9 +572,7 @@ class Bayesian_Optimization_PO(Dirichlet, PPEProbabilities):
                     continue
                 
                 llik += param_llik * param_weights[m] * self.J
-                
-        print("Params:", llik)
-                
+                                
         return float(-llik)
     
     
