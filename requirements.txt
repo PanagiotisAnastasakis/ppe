@@ -1,0 +1,5 @@
+numpy
+pandas
+jax
+ax-platform
+scipy
