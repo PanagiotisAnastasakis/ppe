@@ -1,6 +1,6 @@
 import jax.numpy as jnp
 from jax import grad, jacobian
-from dirichlet import Dirichlet
+from .dirichlet import Dirichlet
 
 
 class optimize_ppe(Dirichlet):  ### closed form is assumed!!!

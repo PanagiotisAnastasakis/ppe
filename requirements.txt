@@ -1,6 +1,7 @@
-numpy
+jax<=0.4.28
+jaxlib<=0.4.28
+numpy<2.0.0
 pandas
-jax
-jaxlib
-ax-platform
 scipy
+matplotlib
+# ax-platform
