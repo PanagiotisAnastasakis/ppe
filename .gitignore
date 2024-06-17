@@ -155,3 +155,4 @@ cython_debug/
 
 # Local stuff
 *.pdf
+temp.py
