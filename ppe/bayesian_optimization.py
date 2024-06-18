@@ -2,8 +2,8 @@ import numpy as np
 from ax import optimize
 import scipy.stats as sps
 
-from dirichlet import Dirichlet
-from priorpredictiveelicitation import PPEProbabilities
+from ppe.dirichlet import Dirichlet
+from ppe.priorpredictiveelicitation import PPEProbabilities
 
 ## Class to perform Bayesian Optimization to find the optimal hyperparameters for the priors
 
@@ -159,6 +159,7 @@ class Bayesian_Optimization(Dirichlet, PPEProbabilities):
     def optimize_hyperparams(
         self,
         param_names: list,
+        param_types: list,
         param_bounds: list,
         param_expected_vals: list,
         param_weights: list,
@@ -172,12 +173,12 @@ class Bayesian_Optimization(Dirichlet, PPEProbabilities):
         ) + self.hyperprior_llik(lam, param_bounds, param_expected_vals, param_weights)
 
         parameters = [
-            {"name": name_, "type": type_, "bounds": bound_}
+            {"name": name_, "type": type_, "bounds" if bound_ == "range" else "values": bound_}
             for name_, type_, bound_ in zip(
-                param_names, ["range"] * len(param_names), param_bounds
+                param_names, param_types, param_bounds
             )
         ]
-
+        
         best_lam, values, experiment, model = optimize(
             parameters=parameters,
             evaluation_function=dir_neg_llik,
