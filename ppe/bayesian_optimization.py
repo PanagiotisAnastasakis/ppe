@@ -171,13 +171,13 @@ class Bayesian_Optimization(Dirichlet, PPEProbabilities):
         dir_neg_llik = lambda lam: self.dirichlet_neg_llik(
             lam, partitions, expert_probs
         ) + self.hyperprior_llik(lam, param_bounds, param_expected_vals, param_weights)
+        
+        def create_param_dict(name, type, bound):
+            if type == "range":
+                return {"name": name, "type": type, "bounds": bound}
+            return {"name": name, "type": type, "values": bound}
 
-        parameters = [
-            {"name": name_, "type": type_, "bounds" if bound_ == "range" else "values": bound_}
-            for name_, type_, bound_ in zip(
-                param_names, param_types, param_bounds
-            )
-        ]
+        parameters = [create_param_dict(name, type, bound) for name, type, bound in zip(param_names, param_types, param_bounds)]
         
         best_lam, values, experiment, model = optimize(
             parameters=parameters,
