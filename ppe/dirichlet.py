@@ -220,3 +220,11 @@ class Dirichlet:
 
         # Compute the gradient of llik_index with respect to total_model_probs
         return -grad(llik_index)(total_model_probs[index])
+
+    def probabilities_check(self, list_probs):
+        assert jnp.all(
+            jnp.isclose(
+                jnp.array([jnp.sum(probs) for probs in list_probs]),
+                jnp.ones(self.J),
+            )
+        ), "Probabilities must sum to 1"
