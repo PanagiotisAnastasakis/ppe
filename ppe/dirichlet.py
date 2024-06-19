@@ -174,8 +174,8 @@ class Dirichlet:
 
     def grad_dirichlet_p(self, total_model_probs, total_expert_probs, index=None):
         
-        ### Maybe we should re-write this in a closed form instead of using autograd?
-
+        
+        
         def llik_index(sample_probs_index):
 
             # Replace the i-th probability vector in total_model_probs with total_model_probs[index], keeping the rest unchanged
