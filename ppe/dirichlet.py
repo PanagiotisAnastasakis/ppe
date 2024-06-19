@@ -81,7 +81,9 @@ class Dirichlet:
     ## MLE formula, using all the covariate sets (all j=1,...,J).
 
     def llik(self, total_model_probs, total_expert_probs, index=None):
-
+        
+        
+        ## Change this
         probs = total_model_probs[index] if index is not None else total_model_probs
         expert_probs = (
             total_expert_probs[index] if index is not None else total_expert_probs
@@ -131,6 +133,7 @@ class Dirichlet:
 
     def sum_llik(self, total_model_probs: list, total_expert_probs: list):
 
+        ## probably redundant
         if self.J == 1:
             return self.llik(total_model_probs, total_expert_probs, index=0)
 
@@ -170,6 +173,8 @@ class Dirichlet:
     ## vector we take the derivative with, meaning that we eventually take the derivative of the MLE formula.
 
     def grad_dirichlet_p(self, total_model_probs, total_expert_probs, index=None):
+        
+        ### Maybe we should re-write this in a closed form instead of using autograd?
 
         def llik_index(sample_probs_index):
 
