@@ -17,52 +17,16 @@ class Dirichlet:
     ## sample_probs and sample_expert_probs are the same quantities but for multiple sets of covariates (J), each of which may have different partitions
     ## They are formatted as lists of arrays, with each array corresponding to one covariate set (thus J arrays in total)
 
-    ## For both sample_probs and sample_expert_probs, the probabilities for each j = 1,...,J are in the j'th row
-
     ## Function to calculate the approximation of the MLE of alpha
 
     def alpha_mle(self, total_model_probs, total_expert_probs, index=None):
 
-        ## If J=1, then we compute the MLE estimate of \alpha and return it
-
-        if self.J == 1:
-
-            ## If J=1, then it is possible that the probabilities are encapsulated in a list, meaning that if we have e.g. prob = [0.5,0.5],
-            ## the actual input is [[0.5, 0.5]]. In such a case, the parameter "index" will be 0 and the following two lines of code remove the outer list
-
-            total_model_probs = (
-                total_model_probs[index] if index is not None else total_model_probs
-            )
-            total_expert_probs = (
-                total_expert_probs[index] if index is not None else total_expert_probs
-            )
-
-            assert jnp.isclose(jnp.sum(total_model_probs), 1) and jnp.isclose(
-                jnp.sum(total_expert_probs), 1
-            ), "Probabilities must sum to 1"
-
-            K = len(total_model_probs)
-
-            kl_divergence = -jnp.sum(
-                total_model_probs
-                * (jnp.log(total_expert_probs) - jnp.log(total_model_probs))
-            )
-
-            return (K / 2 - 1 / 2) / kl_divergence
-
-        ## If J>1, we use a different formula
-
-        assert jnp.all(
-            jnp.isclose(
-                jnp.array([jnp.sum(probs) for probs in total_model_probs]),
-                jnp.ones(self.J),
-            )
-        ) and jnp.all(
-            jnp.isclose(
-                jnp.array([jnp.sum(probs) for probs in total_expert_probs]),
-                jnp.ones(self.J),
-            )
-        ), "Probabilities must sum to 1"
+        # Assert shapes match
+        assert self.J == len(total_model_probs)
+        assert self.J == len(total_expert_probs)
+        # Assert probabilities sum to 1
+        self.probabilities_check(total_model_probs)
+        self.probabilities_check(total_expert_probs)
 
         nom = 0
         den = 0
