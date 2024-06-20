@@ -82,32 +82,30 @@ class Dirichlet:
 
     def llik(self, total_model_probs, total_expert_probs, index=None):
         
-        
-        ## Change this
         probs = total_model_probs[index] if index is not None else total_model_probs
-        expert_probs = (
-            total_expert_probs[index] if index is not None else total_expert_probs
-        )
+        expert_probs = total_expert_probs[index] if index is not None else total_expert_probs
 
-        assert jnp.all(
-            jnp.isclose(
-                jnp.array([jnp.sum(probs) for probs in total_model_probs]),
-                jnp.ones(self.J),
-            )
-        ) and jnp.all(
-            jnp.isclose(
-                jnp.array([jnp.sum(probs) for probs in total_expert_probs]),
-                jnp.ones(self.J),
-            )
-        ), "Probabilities must sum to 1"
+        #assert jnp.all(
+        #    jnp.isclose(
+        #        jnp.array([jnp.sum(probs) for probs in total_model_probs]),
+        #        jnp.ones(self.J),
+        #    )
+        #) and jnp.all(
+        #    jnp.isclose(
+        #        jnp.array([jnp.sum(probs) for probs in total_expert_probs]),
+        #        jnp.ones(self.J),
+        #    )
+        #), "Probabilities must sum to 1"
+        
+        # Assert probabilities sum to 1
+        self.probabilities_check(total_model_probs)
+        self.probabilities_check(total_expert_probs)
 
         reset = 0
 
         if self.alpha is None:
             reset = 1
-            self.alpha = self.alpha_mle(
-                total_model_probs, total_expert_probs, index
-            )  ## we include all the probabilities to compute alpha!
+            self.alpha = self.alpha_mle(total_model_probs, total_expert_probs)  ## we include all the probabilities to compute alpha!
 
         loggamma_alpha = gammaln(self.alpha)
 
@@ -133,21 +131,25 @@ class Dirichlet:
 
     def sum_llik(self, total_model_probs: list, total_expert_probs: list):
 
+        #assert jnp.all(
+        #    jnp.isclose(
+        #        jnp.array([jnp.sum(probs) for probs in total_model_probs]),
+        #        jnp.ones(self.J),
+        #    )
+        #) and jnp.all(
+        #    jnp.isclose(
+        #        jnp.array([jnp.sum(probs) for probs in total_expert_probs]),
+        #        jnp.ones(self.J),
+        #    )
+        #), "Probabilities must sum to 1"
+        
+        # Assert probabilities sum to 1
+        self.probabilities_check(total_model_probs)
+        self.probabilities_check(total_expert_probs)
+        
         ## probably redundant
-        if self.J == 1:
-            return self.llik(total_model_probs, total_expert_probs, index=0)
-
-        assert jnp.all(
-            jnp.isclose(
-                jnp.array([jnp.sum(probs) for probs in total_model_probs]),
-                jnp.ones(self.J),
-            )
-        ) and jnp.all(
-            jnp.isclose(
-                jnp.array([jnp.sum(probs) for probs in total_expert_probs]),
-                jnp.ones(self.J),
-            )
-        ), "Probabilities must sum to 1"
+        #if self.J == 1:
+        #    return self.llik(total_model_probs, total_expert_probs, index=0)
 
         reset = 0
 
@@ -173,8 +175,6 @@ class Dirichlet:
     ## vector we take the derivative with, meaning that we eventually take the derivative of the MLE formula.
 
     def grad_dirichlet_p(self, total_model_probs, total_expert_probs, index=None):
-        
-        
         
         def llik_index(sample_probs_index):
 
