@@ -1,6 +1,6 @@
 import jax.numpy as jnp
 from jax import grad
-from jax.scipy.special import gamma, gammaln
+from jax.scipy.special import gammaln
 
 
 ## Class that contains functions related to the dirichlet distribution that are necessary to optimize the hyperparameters \lambda
@@ -112,7 +112,7 @@ class Dirichlet:
     ## we define the log likelihood with respect to the vector with respect to which we compute the gradient.
     ## This supports either fixed \alpha or using the MLE formula. In the latter case, the formula is dependent on the
     ## vector we take the derivative with, meaning that we eventually take the derivative of the MLE formula.
-
+    
     def grad_dirichlet_p(self, total_model_probs, total_expert_probs, index=None):
         
         def llik_index(sample_probs_index):
