@@ -70,3 +70,4 @@ if __name__ == "__main__":
     derivative_2 = vmap_stochastic_derivative(lambd_0, partitions)
     print("likelihood derivative", derivative_1)
     print("stochastic derivative", derivative_2)
+    print("total stochastic derivative", jnp.dot(derivative_2.T, derivative_1))
