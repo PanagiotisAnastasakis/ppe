@@ -84,18 +84,6 @@ class Dirichlet:
         
         probs = total_model_probs[index] if index is not None else total_model_probs
         expert_probs = total_expert_probs[index] if index is not None else total_expert_probs
-
-        #assert jnp.all(
-        #    jnp.isclose(
-        #        jnp.array([jnp.sum(probs) for probs in total_model_probs]),
-        #        jnp.ones(self.J),
-        #    )
-        #) and jnp.all(
-        #    jnp.isclose(
-        #        jnp.array([jnp.sum(probs) for probs in total_expert_probs]),
-        #        jnp.ones(self.J),
-        #    )
-        #), "Probabilities must sum to 1"
         
         # Assert probabilities sum to 1
         self.probabilities_check(total_model_probs)
@@ -130,26 +118,10 @@ class Dirichlet:
     ## Sum of log-likelihoods for j=1,...,J. Same as before, \alpha is either fixed or computed using the MLE formula
 
     def sum_llik(self, total_model_probs: list, total_expert_probs: list):
-
-        #assert jnp.all(
-        #    jnp.isclose(
-        #        jnp.array([jnp.sum(probs) for probs in total_model_probs]),
-        #        jnp.ones(self.J),
-        #    )
-        #) and jnp.all(
-        #    jnp.isclose(
-        #        jnp.array([jnp.sum(probs) for probs in total_expert_probs]),
-        #        jnp.ones(self.J),
-        #    )
-        #), "Probabilities must sum to 1"
         
         # Assert probabilities sum to 1
         self.probabilities_check(total_model_probs)
         self.probabilities_check(total_expert_probs)
-        
-        ## probably redundant
-        #if self.J == 1:
-        #    return self.llik(total_model_probs, total_expert_probs, index=0)
 
         reset = 0
 
