@@ -46,35 +46,6 @@ class Dirichlet:
 
         return nom / den
 
-    ## Simple function for the PDF of the Dirichet distribution (not used anywhere so far)
-
-    #def pdf(self, model_probs, expert_probs):
-    #
-    #    assert jnp.isclose(jnp.sum(model_probs), 1) and jnp.isclose(
-    #        jnp.sum(expert_probs), 1
-    #    ), "Probabilities must sum to 1"
-    #
-    #    reset = 0
-    #
-    #    if self.alpha is None:
-    #        reset = 1
-    #        self.alpha = self.alpha_mle(model_probs, expert_probs)
-    #
-    #    num_1 = gamma(self.alpha)
-    #    den_1 = jnp.prod([gamma(self.alpha * prob) for prob in model_probs])
-    #    pt_1 = num_1 / den_1
-    #
-    #    pt_2 = jnp.prod(
-    #        [
-    #            expert_probs[i] ** (self.alpha * model_probs[i] - 1)
-    #            for i in range(len(model_probs))
-    #        ]
-    #    )
-    #
-    #    if reset == 1:
-    #        self.alpha = None
-    #
-    #    return pt_1 * pt_2
 
     ## Function for log likelihood for J=1. We have as inputs sample_probs and sample_expert_probs and an index (j \in {1,...,J}).
     ## If we have a fixed \alpha as input, we use this as input for the computation, alternatively we compute it according to the
