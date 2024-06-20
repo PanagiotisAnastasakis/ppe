@@ -55,10 +55,6 @@ class Dirichlet:
         
         probs = total_model_probs[index] if index is not None else total_model_probs
         expert_probs = total_expert_probs[index] if index is not None else total_expert_probs
-        
-        # Assert probabilities sum to 1
-        self.probabilities_check(total_model_probs)
-        self.probabilities_check(total_expert_probs)
 
         reset = 0
 
@@ -132,6 +128,7 @@ class Dirichlet:
 
         # Compute the gradient of llik_index with respect to total_model_probs
         return -grad(llik_index)(total_model_probs[index])
+
 
     def probabilities_check(self, list_probs):
         assert jnp.all(
