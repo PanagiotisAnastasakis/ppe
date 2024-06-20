@@ -1,4 +1,4 @@
 from .dirichlet import Dirichlet
-from .priorpredictiveelicitation import PPEProbabilities
+from .computing_probabilities import PPEProbabilities
 
 __all__ = ["Dirichlet", "PPEProbabilities"]

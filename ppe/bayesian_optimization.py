@@ -3,7 +3,7 @@ from ax import optimize
 import scipy.stats as sps
 
 from ppe.dirichlet import Dirichlet
-from ppe.priorpredictiveelicitation import PPEProbabilities
+from ppe.computing_probabilities import PPEProbabilities
 
 ## Class to perform Bayesian Optimization to find the optimal hyperparameters for the priors
 
