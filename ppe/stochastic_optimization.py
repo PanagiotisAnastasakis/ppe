@@ -25,6 +25,7 @@ def nonstochastic_derivative(alpha, probs, expert_probs):
     if alpha is None:
         # If alpha is not provided, compute the MLE
         def likelihood_fn(probs):
+            # TODO: Bug here
             alpha = alpha_mle_(probs, expert_probs)
             return dirichlet_log_likelihood(alpha, probs, expert_probs)
 
