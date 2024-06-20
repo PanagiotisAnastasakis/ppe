@@ -46,46 +46,38 @@ class Dirichlet:
 
         return nom / den
 
-
     ## Function for log likelihood for J=1. We have as inputs sample_probs and sample_expert_probs and an index (j \in {1,...,J}).
     ## If we have a fixed \alpha as input, we use this as input for the computation, alternatively we compute it according to the
     ## MLE formula, using all the covariate sets (all j=1,...,J).
 
     def llik(self, total_model_probs, total_expert_probs, index=None):
-        
+
         probs = total_model_probs[index] if index is not None else total_model_probs
-        expert_probs = total_expert_probs[index] if index is not None else total_expert_probs
+        expert_probs = (
+            total_expert_probs[index] if index is not None else total_expert_probs
+        )
 
         reset = 0
 
         if self.alpha is None:
             reset = 1
-            self.alpha = self.alpha_mle(total_model_probs, total_expert_probs)  ## we include all the probabilities to compute alpha!
+            self.alpha = self.alpha_mle(
+                total_model_probs, total_expert_probs
+            )  ## we include all the probabilities to compute alpha!
 
-        loggamma_alpha = gammaln(self.alpha)
-
-        num_1 = loggamma_alpha
-        den_1 = jnp.sum(jnp.array([gammaln(self.alpha * probs)]))
-        pt_1 = num_1 - den_1
-
-        pt_2 = jnp.sum(
-            jnp.array(
-                [
-                    (self.alpha * probs[i] - 1) * jnp.log(expert_probs[i])
-                    for i in range(len(probs))
-                ]
-            )
+        output = log_likelihood(
+            alpha=self.alpha, probs=probs, expert_probs=expert_probs
         )
 
         if reset == 1:
             self.alpha = None
 
-        return pt_1 + pt_2
+        return output
 
     ## Sum of log-likelihoods for j=1,...,J. Same as before, \alpha is either fixed or computed using the MLE formula
 
     def sum_llik(self, total_model_probs: list, total_expert_probs: list):
-        
+
         # Assert probabilities sum to 1
         self.probabilities_check(total_model_probs)
         self.probabilities_check(total_expert_probs)
@@ -112,9 +104,9 @@ class Dirichlet:
     ## we define the log likelihood with respect to the vector with respect to which we compute the gradient.
     ## This supports either fixed \alpha or using the MLE formula. In the latter case, the formula is dependent on the
     ## vector we take the derivative with, meaning that we eventually take the derivative of the MLE formula.
-    
+
     def grad_dirichlet_p(self, total_model_probs, total_expert_probs, index=None):
-        
+
         def llik_index(sample_probs_index):
 
             # Replace the i-th probability vector in total_model_probs with total_model_probs[index], keeping the rest unchanged
@@ -129,7 +121,6 @@ class Dirichlet:
         # Compute the gradient of llik_index with respect to total_model_probs
         return -grad(llik_index)(total_model_probs[index])
 
-
     def probabilities_check(self, list_probs):
         assert jnp.all(
             jnp.isclose(
@@ -137,3 +128,14 @@ class Dirichlet:
                 jnp.ones(self.J),
             )
         ), "Probabilities must sum to 1"
+
+
+def log_likelihood(alpha, probs, expert_probs):
+    loggamma_alpha = gammaln(alpha)
+
+    num_1 = loggamma_alpha
+    den_1 = jnp.sum(jnp.array([gammaln(alpha * probs)]))
+    pt_1 = num_1 - den_1
+    pt_2 = jnp.sum((alpha * probs - 1) * jnp.log(expert_probs))
+
+    return pt_1 + pt_2
