@@ -18,6 +18,7 @@ def get_gaussian_probs(partitions, lam):
     return p1
 
 
+@jax.jit
 def likelihood_priorpredprob_grad(alpha, probs, expert_probs):
     # If alpha is not provided, compute the MLE
     if alpha is None:
@@ -36,6 +37,7 @@ def likelihood_priorpredprob_grad(alpha, probs, expert_probs):
     return likelihood_gradient
 
 
+@jax.jit
 def stochastic_derivative(lambd, partition):
     a, b = partition
     pivot_sample = sampler_fn(rng_key, (num_samples,))
