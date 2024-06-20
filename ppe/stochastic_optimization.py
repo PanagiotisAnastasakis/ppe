@@ -19,10 +19,11 @@ def get_gaussian_probs(partitions, lam):
 
 
 @jax.jit
-def likelihood_priorpredprob_grad(alpha, probs, expert_probs):
-    # If alpha is not provided, compute the MLE
-    if alpha is None:
+def nonstochastic_derivative(alpha, probs, expert_probs):
+    # Compute the gradient of the dirichlet likelihood wrt the probabilities
 
+    if alpha is None:
+        # If alpha is not provided, compute the MLE
         def likelihood_fn(probs):
             alpha = alpha_mle_(probs, expert_probs)
             return dirichlet_log_likelihood(alpha, probs, expert_probs)
@@ -39,6 +40,7 @@ def likelihood_priorpredprob_grad(alpha, probs, expert_probs):
 
 @jax.jit
 def stochastic_derivative(lambd, partition):
+    # Compute stochastic gradient of each prior predictive probability wrt the hyperparameters
     a, b = partition
     pivot_sample = sampler_fn(rng_key, (num_samples,))
 
@@ -65,7 +67,7 @@ if __name__ == "__main__":
 
     probs = get_gaussian_probs(partitions, lambd_0)
     print("probs", probs.sum())
-    derivative_1 = likelihood_priorpredprob_grad(alpha, probs, expert_probs)
+    derivative_1 = nonstochastic_derivative(alpha, probs, expert_probs)
     vmap_stochastic_derivative = jax.vmap(stochastic_derivative, in_axes=(None, 0))
     derivative_2 = vmap_stochastic_derivative(lambd_0, partitions)
     print("likelihood derivative", derivative_1)
