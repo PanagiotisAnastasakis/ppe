@@ -27,24 +27,7 @@ class Dirichlet:
         # Assert probabilities sum to 1
         self.probabilities_check(total_model_probs)
         self.probabilities_check(total_expert_probs)
-
-        nom = 0
-        den = 0
-
-        for j in range(self.J):
-
-            n_j = len(total_model_probs[j])
-
-            nom += (n_j - 1) / 2
-
-            kl_divergence = -jnp.sum(
-                total_model_probs[j]
-                * (jnp.log(total_expert_probs[j]) - jnp.log(total_model_probs[j]))
-            )
-
-            den += kl_divergence
-
-        return nom / den
+        return alpha_mle_(total_model_probs, total_expert_probs)
 
     ## Function for log likelihood for J=1. We have as inputs sample_probs and sample_expert_probs and an index (j \in {1,...,J}).
     ## If we have a fixed \alpha as input, we use this as input for the computation, alternatively we compute it according to the
@@ -139,3 +122,23 @@ def log_likelihood(alpha, probs, expert_probs):
     pt_2 = jnp.sum((alpha * probs - 1) * jnp.log(expert_probs))
 
     return pt_1 + pt_2
+
+
+def alpha_mle_(total_model_probs, total_expert_probs):
+    nom = 0
+    den = 0
+    J = len(total_model_probs)
+    for j in range(J):
+
+        n_j = len(total_model_probs[j])
+
+        nom += (n_j - 1) / 2
+
+        kl_divergence = -jnp.sum(
+            total_model_probs[j]
+            * (jnp.log(total_expert_probs[j]) - jnp.log(total_model_probs[j]))
+        )
+
+        den += kl_divergence
+
+    return nom / den
