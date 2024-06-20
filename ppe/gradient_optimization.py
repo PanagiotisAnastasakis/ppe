@@ -1,5 +1,5 @@
 import jax.numpy as jnp
-from jax import grad, jacobian
+from jax import grad, jacobian, jit
 from .dirichlet import Dirichlet
 
 
@@ -108,7 +108,7 @@ class optimize_ppe(Dirichlet):  ### closed form is assumed!!!
 
         for j in range(self.J):
 
-            total_dir_grad_lambda += self.grad_dirichlet_lambda(
+            total_dir_grad_lambda += self.grad_dirichlet_lambda_2(
                 lam, total_partitions, total_covariates, total_expert_probs, j
             )
 
