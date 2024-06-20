@@ -204,10 +204,8 @@ class Bayesian_Optimization(Dirichlet, PPEProbabilities):
 
         model_probs = self.get_model_probs(lam, partitions)
 
-        index = 0 if self.J == 1 else None
-
         alpha = self.alpha_mle(
-            total_model_probs=model_probs, total_expert_probs=expert_probs, index=index
+            total_model_probs=model_probs, total_expert_probs=expert_probs
         )
 
         return alpha
