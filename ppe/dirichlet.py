@@ -48,7 +48,7 @@ class Dirichlet:
                 total_model_probs, total_expert_probs
             )  ## we include all the probabilities to compute alpha!
 
-        output = log_likelihood(
+        output = dirichlet_log_likelihood(
             alpha=self.alpha, probs=probs, expert_probs=expert_probs
         )
 
@@ -113,7 +113,7 @@ class Dirichlet:
         ), "Probabilities must sum to 1"
 
 
-def log_likelihood(alpha, probs, expert_probs):
+def dirichlet_log_likelihood(alpha, probs, expert_probs):
     loggamma_alpha = gammaln(alpha)
 
     num_1 = loggamma_alpha
