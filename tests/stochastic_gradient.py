@@ -1,1 +1,1 @@
-# TODO: Compare stochastic gradient with non-stochastic gradient
+# TODO: Add test here

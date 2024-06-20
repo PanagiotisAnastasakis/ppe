@@ -60,16 +60,25 @@ if __name__ == "__main__":
     alpha = 1.0
     lambd_0 = jnp.ones(3)
     rng_key = jr.key(0)
-    num_samples = 10
+    num_samples = 1_000_000
     sampler_fn = jr.normal
     cdf_fn = lambda theta, a, lambd: jss.norm.cdf(a, loc=theta, scale=lambd[-1])
     pivot_fn = lambda lambd, z: lambd[0] + lambd[1] * z
-
+    # In this case we can obtain probs in closed form, but in general we would need stochastic estimates
     probs = get_gaussian_probs(partitions, lambd_0)
-    print("probs", probs.sum())
     derivative_1 = nonstochastic_derivative(alpha, probs, expert_probs)
     vmap_stochastic_derivative = jax.vmap(stochastic_derivative, in_axes=(None, 0))
     derivative_2 = vmap_stochastic_derivative(lambd_0, partitions)
+    derivative = jnp.dot(derivative_2.T, derivative_1)
     print("likelihood derivative", derivative_1)
     print("stochastic derivative", derivative_2)
-    print("total stochastic derivative", jnp.dot(derivative_2.T, derivative_1))
+    print("stochastic gradient", derivative)
+
+    def test_fn(lambd):
+        probs = get_gaussian_probs(partitions, lambd)
+        return dirichlet_log_likelihood(alpha, probs, expert_probs)
+
+    test_value = jax.grad(test_fn)(lambd_0)
+    print("Non stochastic gradient", test_value)
+    assert jnp.allclose(test_value, derivative, atol=1e-1)
+    print("Test passed")
