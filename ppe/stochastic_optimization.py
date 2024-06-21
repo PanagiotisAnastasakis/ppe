@@ -5,15 +5,9 @@ import jax.scipy.stats as jss
 from .dirichlet import dirichlet_log_likelihood, alpha_mle_
 
 
-def replace_first_occurrence(lst, old_value, new_value):
-    # Iterate through the list
-    for i in range(len(lst)):
-        # Check if the current element is the one to replace
-        if lst[i] == old_value:
-            # Replace it with the new value
-            lst[i] = new_value
-            # Exit the loop after the first replacement
-            break
+def replace_value_index(lst, index, new_value):
+    assert lst[index] == new_value
+    lst[index] = new_value
     return lst
 
 
@@ -28,16 +22,14 @@ def set_derivative_fn(
 ):
 
     @jax.jit
-    def nonstochastic_derivative(alpha, probs, expert_probs):
+    def nonstochastic_derivative(alpha, probs, expert_probs, index):
         # Compute the gradient of the dirichlet likelihood wrt the probabilities
 
         if alpha is None:
             # If alpha is not provided, compute the MLE
             def likelihood_fn(probs):
                 # Make the computation of alpha depend on the current probs
-                total_model_probs = replace_first_occurrence(
-                    total_model_probs, probs, probs
-                )
+                total_model_probs = replace_value_index(total_model_probs, index, probs)
                 alpha = alpha_mle_(total_model_probs, total_expert_probs)
                 return dirichlet_log_likelihood(alpha, probs, expert_probs)
 

@@ -27,7 +27,7 @@ def get_gaussian_probs(partitions, lam):
     return p1
 
 
-# TODO: Add test here
+# TODO: Add test for alpha_mle
 if __name__ == "__main__":
     partitions = jnp.array([[-1000, -2], [-2, 3], [3, 1000]])
     expert_probs = jnp.array([0.2, 0.7, 0.1])
@@ -53,7 +53,7 @@ if __name__ == "__main__":
         total_model_probs,
         total_expert_probs,
     )
-    derivative_1 = nonstochastic_derivative(alpha, probs, expert_probs)
+    derivative_1 = nonstochastic_derivative(alpha, probs, expert_probs, index=0)
     vmap_stochastic_derivative = jax.vmap(stochastic_derivative, in_axes=(None, 0))
     _, derivative_2 = vmap_stochastic_derivative(lambd_0, partitions)
     derivative = jnp.dot(derivative_2.T, derivative_1)
