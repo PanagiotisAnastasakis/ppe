@@ -157,4 +157,4 @@ cython_debug/
 *.pdf
 temp.py
 testing_stochastic.ipynb
-Stochastic_optimization.ipynb
+testing_stochastic_2.ipynb
