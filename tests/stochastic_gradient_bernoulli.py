@@ -26,6 +26,7 @@ def get_bernoulli_probs(lam, covariate_set):
 
 
 # TODO: Add test for alpha_mle
+# TODO: Generalize to general discrete likelihoods
 if __name__ == "__main__":
 
     partitions = jnp.array([0, 1])
@@ -47,6 +48,7 @@ if __name__ == "__main__":
     probs = get_bernoulli_probs(lambd_0, covariate_set)
     total_model_probs = [probs]
     total_expert_probs = [expert_probs]
+
     nonstochastic_derivative, stochastic_derivative = set_derivative_bernoulli_fn(
         rng_key,
         num_samples,
@@ -59,6 +61,7 @@ if __name__ == "__main__":
     derivative_1 = nonstochastic_derivative(alpha, probs, expert_probs, index=0)
     _, derivative_2 = stochastic_derivative(lambd_0, covariate_set)
     derivative_2_mu, derivative_2_sigma = derivative_2
+    # We compute only for partition A={1}
     # note that d/dλ 1-p = -d/dλ p
     derivative_mu = jnp.dot(
         jnp.stack((-derivative_2_mu, derivative_2_mu), axis=-1), derivative_1
