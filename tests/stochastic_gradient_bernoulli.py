@@ -59,7 +59,7 @@ if __name__ == "__main__":
     derivative_1 = nonstochastic_derivative(alpha, probs, expert_probs, index=0)
     _, derivative_2 = stochastic_derivative(lambd_0, covariate_set)
     derivative_2_mu, derivative_2_sigma = derivative_2
-    print("der1", derivative_1)
+    # note that d/dλ 1-p = -d/dλ p
     derivative_mu = jnp.dot(
         jnp.stack((-derivative_2_mu, derivative_2_mu), axis=-1), derivative_1
     )
