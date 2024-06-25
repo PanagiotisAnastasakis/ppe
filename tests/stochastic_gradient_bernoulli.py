@@ -18,7 +18,7 @@ def get_bernoulli_probs(lam, covariate_set):
     mu, sigma = lam
     nom = jnp.dot(covariate_set, mu)
     if jnp.ndim(sigma) == 1:
-        den = jnp.sqrt(1 + jnp.dot(covariate_set, sigma * covariate_set))
+        den = jnp.sqrt(1 + jnp.dot(covariate_set, sigma**2 * covariate_set))
     else:
         den = jnp.sqrt(1 + covariate_set.T @ sigma @ covariate_set)
     value = jss.norm.cdf(nom / den)
@@ -36,7 +36,7 @@ if __name__ == "__main__":
     # Try simple Bernoulli example
     lattent_dim = 5
     alpha = 1.0
-    mu_0 = jnp.zeros(lattent_dim)
+    mu_0 = jnp.ones(lattent_dim)
     sigma_0 = jnp.ones(lattent_dim)
     lambd_0 = (mu_0, sigma_0)
     rng_key = jr.key(0)
