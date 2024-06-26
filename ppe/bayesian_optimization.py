@@ -36,9 +36,9 @@ class Bayesian_Optimization(Dirichlet, PPEProbabilities):
 
     """
 
-    def get_model_probs(self, lam, partitions):
+    def get_model_probs(self, lam, partitions, num_samples = None):
 
-        idata = self.pymc_sampling_func(lam, self.target_samples)
+        idata = self.pymc_sampling_func(lam, self.target_samples) if num_samples is None else self.pymc_sampling_func(lam, num_samples)
 
         prior_predictive_samples = idata.prior_predictive["Y_obs"][0]
 
