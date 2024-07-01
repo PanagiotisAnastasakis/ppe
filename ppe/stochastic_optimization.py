@@ -17,7 +17,6 @@ def set_derivative_fn(
     sampler_fn,
     cdf_fn,
     pivot_fn,
-    total_model_probs,
     total_expert_probs,
 ):
 
@@ -64,7 +63,6 @@ def set_derivative_bernoulli_fn(
     sampler_fn,
     pmf_fn,
     pivot_fn,
-    total_model_probs,
     total_expert_probs,
 ):
     @jax.jit

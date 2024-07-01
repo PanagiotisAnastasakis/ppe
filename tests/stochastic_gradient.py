@@ -50,7 +50,6 @@ if __name__ == "__main__":
         sampler_fn,
         cdf_fn,
         pivot_fn,
-        total_model_probs,
         total_expert_probs,
     )
     derivative_1 = nonstochastic_derivative(alpha, probs, expert_probs, index=0)
