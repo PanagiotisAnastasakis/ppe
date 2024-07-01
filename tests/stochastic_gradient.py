@@ -42,17 +42,15 @@ if __name__ == "__main__":
     pivot_fn = lambda lambd, z: lambd[0] + lambd[1] * z
     # In this case we can obtain probs in closed form, but in general we would need stochastic estimates
     probs = get_gaussian_probs(partitions, lambd_0)
-    total_model_probs = [probs]
-    total_expert_probs = [expert_probs]
+
     nonstochastic_derivative, stochastic_derivative = set_derivative_fn(
         rng_key,
         num_samples,
         sampler_fn,
         cdf_fn,
         pivot_fn,
-        total_expert_probs,
     )
-    derivative_1 = nonstochastic_derivative(alpha, probs, expert_probs, index=0)
+    _, derivative_1 = nonstochastic_derivative(alpha, probs, expert_probs)
     vmap_stochastic_derivative = jax.vmap(stochastic_derivative, in_axes=(None, 0))
     _, derivative_2 = vmap_stochastic_derivative(lambd_0, partitions)
     derivative = jnp.dot(derivative_2.T, derivative_1)

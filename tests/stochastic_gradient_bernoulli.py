@@ -46,8 +46,6 @@ if __name__ == "__main__":
     pmf_fn = lambda theta, x: jss.norm.cdf(jnp.dot(theta, x))
     # In this case we can obtain probs in closed form, but in general we would need stochastic estimates
     probs = get_bernoulli_probs(lambd_0, covariate_set)
-    total_model_probs = [probs]
-    total_expert_probs = [expert_probs]
 
     nonstochastic_derivative, stochastic_derivative = set_derivative_bernoulli_fn(
         rng_key,
@@ -55,9 +53,8 @@ if __name__ == "__main__":
         sampler_fn,
         pmf_fn,
         pivot_fn,
-        total_expert_probs,
     )
-    derivative_1 = nonstochastic_derivative(alpha, probs, expert_probs, index=0)
+    _, derivative_1 = nonstochastic_derivative(alpha, probs, expert_probs)
     _, derivative_2 = stochastic_derivative(lambd_0, covariate_set)
     derivative_2_mu, derivative_2_sigma = derivative_2
     # We compute only for partition A={1}
