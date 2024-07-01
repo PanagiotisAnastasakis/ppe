@@ -76,17 +76,18 @@ def set_derivative_continous_fn(
 
             if alpha is None:
                 # If alpha is not provided, compute the MLE
-                def likelihood_fn(probs):
+                def neg_log_likelihood_fn(probs):
                     # Make the computation of alpha depend on the current probs
                     alpha = alpha_mle_(probs, expert_probs)
-                    return dirichlet_log_likelihood(alpha, probs, expert_probs)
+                    return -dirichlet_log_likelihood(alpha, probs, expert_probs)
 
             else:
-                likelihood_fn = lambda probs: dirichlet_log_likelihood(
+                neg_log_likelihood_fn = lambda probs: -dirichlet_log_likelihood(
                     alpha, probs, expert_probs
                 )
-            return likelihood_fn(probs), probs
+            return neg_log_likelihood_fn(probs), probs
 
+        # (loss, aux_info), grads
         grad_fn = jax.value_and_grad(function_to_optimize, has_aux=True)
         return grad_fn(lambd)
 

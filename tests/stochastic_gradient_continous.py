@@ -51,13 +51,13 @@ if __name__ == "__main__":
         partitions,
         expert_probs,
     )
-    (value, derivative), estimated_probs = derivative_fn(lambd_0, rng_key)
+    (value, estimated_probs), derivative = derivative_fn(lambd_0, rng_key)
 
     def test_fn(lambd):
         probs = get_gaussian_probs(partitions, lambd)
-        return dirichlet_log_likelihood(alpha, probs, expert_probs), probs
+        return -dirichlet_log_likelihood(alpha, probs, expert_probs), probs
 
-    (test_value, test_grad), probs_test = jax.value_and_grad(test_fn, has_aux=True)(
+    (test_value, probs_test), test_grad = jax.value_and_grad(test_fn, has_aux=True)(
         lambd_0
     )
     assert jnp.allclose(test_value, value, atol=1e-1)

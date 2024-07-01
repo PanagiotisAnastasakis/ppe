@@ -10,7 +10,7 @@ import jax
 import jax.numpy as jnp
 import jax.random as jr
 import jax.scipy.stats as jss
-from ppe.stochastic_optimization import set_derivative_fn
+from ppe.stochastic_optimization import set_derivative_continous_fn
 from flowjax.bijections import RationalQuadraticSpline
 from flowjax.distributions import Normal
 from flowjax.flows import masked_autoregressive_flow
@@ -28,17 +28,12 @@ Objective:
 """
 
 
-def optimizaiton_loop(initial_value, learning_rate, num_iterations):
+def optimization_loop(initial_value, learning_rate, num_iterations, rng_key):
     lambd = initial_value
     for iteration in range(num_iterations):
-        vmap_stochastic_derivative = jax.vmap(stochastic_derivative, in_axes=(None, 0))
-        # Estimate probs stochastically
-        probs, derivative_2 = vmap_stochastic_derivative(lambd, partitions)
-        derivative_1 = nonstochastic_derivative(alpha, probs, expert_probs, index=0)
-        derivative_params = jax.tree.map(
-            lambda x: jnp.dot(x.T, derivative_1), derivative_2[0]
-        )
-        derivative_sigma = jnp.dot(derivative_2[1].T, derivative_1)
+        rng_key, _ = jr.split(rng_key)
+        (value, _), derivative = derivative_fn(lambd, rng_key)
+        derivative_params, derivative_sigma = derivative
 
         # Update parameters
         params = jax.tree.map(
@@ -51,7 +46,8 @@ def optimizaiton_loop(initial_value, learning_rate, num_iterations):
 
         # Optional: print progress
         if (iteration + 1) % 10 == 0:
-            print(f"Iteration {iteration + 1}")
+            print(f"Iteration {iteration + 1} - Neg Log Likelihood: {value}")
+        return lambd
 
 
 def plot_flow_pdf(flow):
@@ -90,14 +86,14 @@ if __name__ == "__main__":
         flow = eqx.combine(params, static)
         return jax.vmap(flow.bijection.transform)(z[:, None])
 
-    total_expert_probs = [expert_probs]
-    nonstochastic_derivative, stochastic_derivative = set_derivative_fn(
-        rng_key,
+    derivative_fn = set_derivative_continous_fn(
         num_samples,
         sampler_fn,
         cdf_fn,
         pivot_fn,
-        total_expert_probs,
+        alpha,
+        partitions,
+        expert_probs,
     )
 
     # Plot initial flow
@@ -106,6 +102,9 @@ if __name__ == "__main__":
     initial_value = [params, 1.0]
     learning_rate = 1e-3
     num_iterations = 100
-    final_value = optimizaiton_loop(initial_value, learning_rate, num_iterations)
+
+    final_value = optimization_loop(
+        initial_value, learning_rate, num_iterations, rng_key
+    )
     flow = eqx.combine(final_value[0], static)
     plot_flow_pdf(flow)
