@@ -150,6 +150,7 @@ def make_plots(model,
                best_params,
                alpha,
                num_bins,
+               partitions,
                lower_inner,
                upper_inner):
     
@@ -164,11 +165,16 @@ def make_plots(model,
         plt.hist(list(filter(lambda x: x>lower_inner and x<upper_inner, true_samples)), bins=30, alpha=0.5, label='True Parameters')
         plt.hist(list(filter(lambda x: x>lower_inner and x<upper_inner, prior_predictive_samples)), bins=30, alpha=0.5, label='BO Parameters')
         
+        x_lines = list(map(lambda L: L[0], partitions))[1:]
+        for x_line in x_lines:
+            plt.vlines(x=x_line, ymin=0, ymax=20, color='red', linestyle='-', linewidth=2)
+        
         plt.style.use("seaborn-v0_8-whitegrid")
         plt.title(f'Sampled distributions of Y for {num_bins} partition bins. Alpha = {alpha:.2f}')
         plt.xlabel('Value')
         plt.ylabel('Frequency')
         plt.legend()
+        plt.show()
         
     else:
                     
@@ -188,6 +194,10 @@ def make_plots(model,
             
             ax.hist(list(filter(lambda x: x>lower_inner and x<upper_inner, true_samples[:,j])), bins=30, alpha=0.5, label='True Parameters')
             ax.hist(list(filter(lambda x: x>lower_inner and x<upper_inner, prior_predictive_samples[:,j])), bins=30, alpha=0.5, label='BO Parameters')
+            
+            x_lines = list(map(lambda L: L[0], partitions))[1:]
+            for x_line in x_lines:
+                ax.vlines(x=x_line, ymin=0, ymax=20, color='red', linestyle='-', linewidth=2)
         
             ax.set_title(f'Sampled distribution of Y, J={j+1}, for {num_bins} partition bins. Alpha = {alpha:.2f}')
             ax.set_xlabel('Value')
