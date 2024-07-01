@@ -11,7 +11,7 @@ import jax.numpy as jnp
 import jax.random as jr
 import jax.scipy.stats as jss
 from ppe.dirichlet import dirichlet_log_likelihood
-from ppe.stochastic_optimization import set_derivative_fn
+from ppe.stochastic_optimization import set_derivative_continous_fn
 
 
 def get_gaussian_probs(partitions, lam):
@@ -41,26 +41,26 @@ if __name__ == "__main__":
     cdf_fn = lambda theta, a, lambd: jss.norm.cdf(a, loc=theta, scale=lambd[-1])
     pivot_fn = lambda lambd, z: lambd[0] + lambd[1] * z
     # In this case we can obtain probs in closed form, but in general we would need stochastic estimates
-    probs = get_gaussian_probs(partitions, lambd_0)
 
-    nonstochastic_derivative, stochastic_derivative = set_derivative_fn(
-        rng_key,
+    derivative_fn = set_derivative_continous_fn(
         num_samples,
         sampler_fn,
         cdf_fn,
         pivot_fn,
+        alpha,
+        partitions,
+        expert_probs,
     )
-    _, derivative_1 = nonstochastic_derivative(alpha, probs, expert_probs)
-    vmap_stochastic_derivative = jax.vmap(stochastic_derivative, in_axes=(None, 0))
-    _, derivative_2 = vmap_stochastic_derivative(lambd_0, partitions)
-    derivative = jnp.dot(derivative_2.T, derivative_1)
+    (value, derivative), estimated_probs = derivative_fn(lambd_0, rng_key)
 
     def test_fn(lambd):
         probs = get_gaussian_probs(partitions, lambd)
-        return dirichlet_log_likelihood(alpha, probs, expert_probs)
+        return dirichlet_log_likelihood(alpha, probs, expert_probs), probs
 
-    test_value = jax.grad(test_fn)(lambd_0)
-    print("stochastic gradient", derivative)
-    print("Non stochastic gradient", test_value)
-    assert jnp.allclose(test_value, derivative, atol=1e-1)
+    (test_value, test_grad), probs_test = jax.value_and_grad(test_fn, has_aux=True)(
+        lambd_0
+    )
+    assert jnp.allclose(test_value, value, atol=1e-1)
+    assert jnp.allclose(probs_test, estimated_probs, atol=1e-1)
+    assert jnp.allclose(test_grad, derivative, atol=1e-1)
     print("Test passed")
