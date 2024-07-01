@@ -22,9 +22,8 @@ import matplotlib.pyplot as plt
 """
 Objective:
  - Fit Normalizing Flow as a prior for simple Gaussian Example.
- - Optimization loop for flow and likelihood paramters
+ - Optimization loop for flow and likelihood paramters simmultaneously.
  - Plot prior pdf
-
 """
 
 
@@ -32,7 +31,7 @@ def optimization_loop(initial_value, learning_rate, num_iterations, rng_key):
     lambd = initial_value
     for iteration in range(num_iterations):
         rng_key, _ = jr.split(rng_key)
-        (value, _), derivative = derivative_fn(lambd, rng_key)
+        (value, probs), derivative = derivative_fn(lambd, rng_key)
         derivative_params, derivative_sigma = derivative
 
         # Update parameters
@@ -46,15 +45,18 @@ def optimization_loop(initial_value, learning_rate, num_iterations, rng_key):
 
         # Optional: print progress
         if (iteration + 1) % 10 == 0:
-            print(f"Iteration {iteration + 1} - Neg Log Likelihood: {value}")
-        return lambd
+            print(
+                f"Iteration {iteration + 1} - Neg Log Likelihood: {value} - Probs: {probs}"
+            )
+    return lambd
 
 
-def plot_flow_pdf(flow):
+def plot_flow_pdf(flow, directory="figs/prior.png"):
     x = jnp.linspace(-5, 5, 1000)
     y = jnp.exp(flow.log_prob(x[:, None]))
     plt.plot(x, y)
-    plt.show()
+    plt.savefig(directory)
+    plt.close()
 
 
 if __name__ == "__main__":
@@ -73,6 +75,8 @@ if __name__ == "__main__":
         subkey,
         base_dist=Normal(jnp.zeros(dim_prior)),
         transformer=RationalQuadraticSpline(knots=2, interval=2),
+        nn_depth=2,
+        nn_width=32,
     )
     params, static = eqx.partition(
         flow,
@@ -97,14 +101,17 @@ if __name__ == "__main__":
     )
 
     # Plot initial flow
-    # plot_flow_pdf(flow)
-
     initial_value = [params, 1.0]
+    flow = eqx.combine(initial_value[0], static)
+    if not os.path.exists("figs"):
+        os.makedirs("figs")
+    plot_flow_pdf(flow, directory=f"figs/prior_{0}.png")
+
     learning_rate = 1e-3
-    num_iterations = 100
+    num_iterations = 1000
 
     final_value = optimization_loop(
         initial_value, learning_rate, num_iterations, rng_key
     )
     flow = eqx.combine(final_value[0], static)
-    plot_flow_pdf(flow)
+    plot_flow_pdf(flow, directory=f"figs/prior_{num_iterations}.png")

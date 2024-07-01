@@ -158,3 +158,4 @@ cython_debug/
 temp.py
 testing_stochastic_2.ipynb
 More_Tests_BO.ipynb
+/figs
