@@ -8,7 +8,7 @@ def gaussian_model_1(lambd, covs = None, n_samples = 1500):
 
     with regression_model:
 
-        mu = pm.Normal("mu", mu=lambd["mu_1"], sigma=lambd["mu_1"])
+        mu = pm.Normal("mu", mu=lambd["mu_1"], sigma=lambd["sigma_1"])
         sigma = pm.Gamma("sigma", alpha=lambd["a"], beta=lambd["b"])
 
         Y_obs = pm.Normal("Y_obs", mu = mu, sigma = sigma, observed=0.) ## the observed value does not matter as we only need the prior predictive distribution
