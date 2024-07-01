@@ -5,31 +5,23 @@ import jax.scipy.stats as jss
 from .dirichlet import dirichlet_log_likelihood, alpha_mle_
 
 
-def replace_value_index(lst, index, new_value):
-    assert lst[index] == new_value
-    lst[index] = new_value
-    return lst
-
-
 def set_derivative_fn(
     rng_key,
     num_samples,
     sampler_fn,
     cdf_fn,
     pivot_fn,
-    total_expert_probs,
 ):
 
     @jax.jit
-    def nonstochastic_derivative(alpha, probs, expert_probs, index):
-        # Compute the gradient of the dirichlet likelihood wrt the probabilities
+    def nonstochastic_derivative(alpha, probs, expert_probs):
+        # Compute the values and gradient of the dirichlet likelihood wrt the probabilities
 
         if alpha is None:
             # If alpha is not provided, compute the MLE
             def likelihood_fn(probs):
                 # Make the computation of alpha depend on the current probs
-                total_model_probs = replace_value_index(total_model_probs, index, probs)
-                alpha = alpha_mle_(total_model_probs, total_expert_probs)
+                alpha = alpha_mle_(probs, expert_probs)
                 return dirichlet_log_likelihood(alpha, probs, expert_probs)
 
         else:
@@ -37,9 +29,9 @@ def set_derivative_fn(
                 alpha, probs, expert_probs
             )
 
-        grad_fn = jax.grad(likelihood_fn)
-        likelihood_gradient = grad_fn(probs)
-        return likelihood_gradient
+        # grad_fn = jax.grad(likelihood_fn)
+        grad_fn = jax.value_and_grad(likelihood_fn)
+        return grad_fn(probs)
 
     @jax.jit
     def stochastic_derivative(lambd, partition):
@@ -63,18 +55,16 @@ def set_derivative_bernoulli_fn(
     sampler_fn,
     pmf_fn,
     pivot_fn,
-    total_expert_probs,
 ):
     @jax.jit
-    def nonstochastic_derivative(alpha, probs, expert_probs, index):
+    def nonstochastic_derivative(alpha, probs, expert_probs):
         # Compute the gradient of the dirichlet likelihood wrt the probabilities
 
         if alpha is None:
-            # If alpha is not provided, compute the MLE
+            # TODO: Implement MLE for alpha
             def likelihood_fn(probs):
                 # Make the computation of alpha depend on the current probs
-                total_model_probs = replace_value_index(total_model_probs, index, probs)
-                alpha = alpha_mle_(total_model_probs, total_expert_probs)
+                alpha = alpha_mle_(probs, expert_probs)
                 return dirichlet_log_likelihood(alpha, probs, expert_probs)
 
         else:
@@ -82,9 +72,8 @@ def set_derivative_bernoulli_fn(
                 alpha, probs, expert_probs
             )
 
-        grad_fn = jax.grad(likelihood_fn)
-        likelihood_gradient = grad_fn(probs)
-        return likelihood_gradient
+        grad_fn = jax.value_and_grad(likelihood_fn)
+        return grad_fn(probs)
 
     @jax.jit
     def stochastic_derivative(lambd, x):
