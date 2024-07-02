@@ -8,6 +8,7 @@ sys.path.append(parent_dir)
 
 from ppe.bayesian_optimization import Bayesian_Optimization
 import matplotlib.pyplot as plt
+import seaborn as sns
 import numpy as np
 
 
@@ -143,7 +144,7 @@ Inputs
 '''
 
 
-def make_plots(model,
+def plot_histograms(model,
                J,
                lambd_names,
                lambd_true_vals,
@@ -210,4 +211,55 @@ def make_plots(model,
         plt.tight_layout()
         plt.show()
 
+
+
+
+def plot_densities(model,
+               J,
+               lambd_names,
+               lambd_true_vals,
+               best_params_total,
+               alpha_total,
+               num_bins,
+               lower_inner,
+               upper_inner):
+    
+    lambd_true = {name: value for name, value in zip(lambd_names, lambd_true_vals)}
+
+    true_samples = model(lambd = lambd_true, n_samples = 10_000).prior_predictive["Y_obs"][0]
+    
+    if J == 1:
+    
+        sns.kdeplot(np.array(list(filter(lambda x: x>lower_inner and x<upper_inner, true_samples))), fill=True, label='True Parameters')
         
+        for i in range(len(num_bins)):
+            
+            best_params = best_params_total[i]        
+            prior_predictive_samples = model(lambd = best_params, n_samples = 10_000).prior_predictive["Y_obs"][0]
+            sns.kdeplot(np.array(list(filter(lambda x: x>lower_inner and x<upper_inner, prior_predictive_samples))), fill=False, label=f'bins={num_bins[i]}, a={alpha_total[i]:.1f}')
+            
+        plt.title('Sampled distributions of Y')
+        plt.xlabel('Value')
+        plt.ylabel('Frequency')
+        plt.legend()
+        plt.show()
+        
+    else:
+        
+        total_prior_predictive_samples = [model(lambd = best_params, n_samples = 10_000).prior_predictive["Y_obs"][0] for best_params in best_params_total]
+        
+        for j in range(J):
+            
+            sns.kdeplot(np.array(list(filter(lambda x: x>lower_inner and x<upper_inner, true_samples[:,j]))), fill=True, label='True Parameters')
+        
+            for i in range(len(num_bins)):
+                
+                best_params = best_params_total[i]        
+                sns.kdeplot(np.array(list(filter(lambda x: x>lower_inner and x<upper_inner, total_prior_predictive_samples[i][:,j]))), fill=False, label=f'bins={num_bins[i]}, a={alpha_total[i]:.1f}')
+                
+            plt.title(f'Sampled distributions of Y for J={j+1}')
+            plt.xlabel('Value')
+            plt.ylabel('Frequency')
+            plt.legend()
+            plt.show()
+            
