@@ -11,6 +11,7 @@ import jax.numpy as jnp
 import jax.random as jr
 import jax.scipy.stats as jss
 from ppe.stochastic_optimization import set_derivative_continous_fn
+from ppe.optimization_loop import optimization_loop
 from flowjax.bijections import RationalQuadraticSpline
 from flowjax.distributions import Normal
 from flowjax.flows import masked_autoregressive_flow
@@ -25,30 +26,6 @@ Objective:
  - Optimization loop for flow and likelihood paramters simmultaneously.
  - Plot prior pdf
 """
-
-
-def optimization_loop(initial_value, learning_rate, num_iterations, rng_key):
-    lambd = initial_value
-    for iteration in range(num_iterations):
-        rng_key, _ = jr.split(rng_key)
-        (value, probs), derivative = derivative_fn(lambd, rng_key)
-        derivative_params, derivative_sigma = derivative
-
-        # Update parameters
-        params = jax.tree.map(
-            lambda p, dp: p - learning_rate * dp, lambd[0], derivative_params
-        )
-        sigma = lambd[1] - learning_rate * derivative_sigma
-
-        # Set updated parameters
-        lambd = [params, sigma]
-
-        # Optional: print progress
-        if (iteration + 1) % 10 == 0:
-            print(
-                f"Iteration {iteration + 1} - Neg Log Likelihood: {value} - Probs: {probs}"
-            )
-    return lambd
 
 
 def plot_flow_pdf(flow, directory="figs/prior.png"):
@@ -111,7 +88,7 @@ if __name__ == "__main__":
     num_iterations = 1000
 
     final_value = optimization_loop(
-        initial_value, learning_rate, num_iterations, rng_key
+        initial_value, learning_rate, num_iterations, derivative_fn, rng_key
     )
     flow = eqx.combine(final_value[0], static)
     plot_flow_pdf(flow, directory=f"figs/prior_{num_iterations}.png")
