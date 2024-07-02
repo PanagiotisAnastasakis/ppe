@@ -73,6 +73,8 @@ def set_derivative_continous_fn(
                 get_probabilities, in_axes=(None, 0, 0)
             )
             probs = vmap_stochastic_derivative(lambd, partitions, keys)
+            # normalize probs
+            probs = probs / jnp.sum(probs)
 
             if alpha is None:
                 # If alpha is not provided, compute the MLE
