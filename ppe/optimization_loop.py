@@ -6,7 +6,7 @@ import jax
 def optimization_loop(
     initial_value, learning_rate, num_iterations, derivative_fn, rng_key
 ):
-    # TODO: Add support for No likelihood params
+    # TODO: Add support for None likelihood params
     lambd = initial_value
     for iteration in range(num_iterations):
         rng_key, _ = jr.split(rng_key)
@@ -28,4 +28,4 @@ def optimization_loop(
             print(
                 f"Iteration {iteration + 1} - Neg Log Likelihood: {value} - Probs: {probs}"
             )
-    return lambd
+    return lambd, probs

@@ -11,6 +11,7 @@ import jax.numpy as jnp
 import jax.random as jr
 import jax.scipy.stats as jss
 from ppe.stochastic_optimization import set_derivative_continous_fn
+from ppe.dirichlet import alpha_mle_
 from ppe.optimization_loop import optimization_loop
 from flowjax.bijections import RationalQuadraticSpline
 from flowjax.distributions import Normal
@@ -43,6 +44,7 @@ if __name__ == "__main__":
     # Try simple Gaussian example
     dim_prior = 1
     alpha = 1.0
+    make_plots = False
 
     rng_key = jr.key(0)
     rng_key, subkey = jr.split(rng_key)
@@ -82,13 +84,17 @@ if __name__ == "__main__":
     flow = eqx.combine(initial_value[0], static)
     if not os.path.exists("figs"):
         os.makedirs("figs")
-    plot_flow_pdf(flow, directory=f"figs/prior_{0}.png")
 
     learning_rate = 1e-3
     num_iterations = 1000
 
-    final_value = optimization_loop(
+    final_value, probs = optimization_loop(
         initial_value, learning_rate, num_iterations, derivative_fn, rng_key
     )
-    flow = eqx.combine(final_value[0], static)
-    plot_flow_pdf(flow, directory=f"figs/prior_{num_iterations}.png")
+
+    alpha_mle = alpha_mle_(total_model_probs=[probs], total_expert_probs=[expert_probs])
+    print(f"MLE Alpha: {alpha_mle}")
+    if make_plots:
+        plot_flow_pdf(flow, directory=f"figs/prior_{0}.png")
+        flow = eqx.combine(final_value[0], static)
+        plot_flow_pdf(flow, directory=f"figs/prior_{num_iterations}.png")

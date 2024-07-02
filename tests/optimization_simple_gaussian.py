@@ -10,7 +10,7 @@ import jax
 import jax.numpy as jnp
 import jax.random as jr
 import jax.scipy.stats as jss
-from ppe.dirichlet import dirichlet_log_likelihood
+from ppe.dirichlet import dirichlet_log_likelihood, alpha_mle_
 from ppe.optimization_loop import optimization_loop
 import matplotlib.pyplot as plt
 
@@ -32,9 +32,9 @@ def get_gaussian_probs(partitions, lambd):
     return p1
 
 
-def plot_flow_pdf(lambd, directory="figs/prior.png"):
+def plot_pdf(lambd, directory="figs/prior.png"):
     x = jnp.linspace(-5, 5, 1000)
-    y = jss.norm.logpdf(x, loc=lambd[0][0], scale=lambd[0][1])
+    y = jss.norm.pdf(x, loc=lambd[0][0], scale=lambd[0][1])
     plt.plot(x, y)
     plt.savefig(directory)
     plt.close()
@@ -48,6 +48,7 @@ if __name__ == "__main__":
     alpha = 1.0
     initial_value = [jnp.ones(2), 1.0]
     rng_key = jr.key(0)
+    make_plots = False
 
     def optimize_fn(lambd):
         probs = get_gaussian_probs(partitions, lambd)
@@ -60,6 +61,11 @@ if __name__ == "__main__":
     learning_rate = 1e-3
     num_iterations = 1000
 
-    final_value = optimization_loop(
+    final_value, probs = optimization_loop(
         initial_value, learning_rate, num_iterations, derivative_fn, rng_key
     )
+    alpha_mle = alpha_mle_(total_model_probs=[probs], total_expert_probs=[expert_probs])
+    print(f"Final Value: {final_value}, MLE Alpha: {alpha_mle}")
+    if make_plots:
+        plot_pdf(initial_value, directory="figs/prior_0.png")
+        plot_pdf(final_value, directory=f"figs/prior_{num_iterations}.png")
