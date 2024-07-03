@@ -108,20 +108,21 @@ def ppe_simulation(model,
     param_expected_vals = [None]*len(lambd_names) ## we only focus on the dirichlet log likelihood
     
 
-    best_params = BO.optimize_hyperparams(param_names=lambd_names,
+    best_params, best_llik = BO.optimize_hyperparams(param_names=lambd_names,
                                     param_types = param_types,
                                     param_bounds=param_bounds,
                                     param_expected_vals = param_expected_vals,
                                     param_weights = None,
                                     partitions = partition,
                                     expert_probs=simulated_expert_probs,
-                                    n_trials=n_trials)
+                                    n_trials=n_trials,
+                                    return_value = True)
     
     best_alpha = BO.eval_function(best_params, partition, simulated_expert_probs) ##alpha
 
     best_probs = BO.get_model_probs(lam = best_params, partitions = partition, num_samples=20_000)
 
-    return simulated_expert_probs, best_params, best_probs, best_alpha
+    return simulated_expert_probs, best_params, best_probs, best_alpha, best_llik
 
     
 ## Function for plotting the distribution of the probabilistic model in the form of overlapping histograms

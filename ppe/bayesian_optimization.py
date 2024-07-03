@@ -153,6 +153,7 @@ class Bayesian_Optimization(Dirichlet, PPEProbabilities):
     - "partitions" -> the partitioning for the target space for each covariate set. Can be either a list/array (J=1) or a list/array of lists/arrays for each covariate set (J>1)
     - "expert_probabilities" -> the expert's probabilistic judgements for each covariate set. Can be either a list (J=1) or a list of lists for each covariate set (J>1)
     - "n_trials" -> the number of trials for the Bayesian Optimization algorithm
+    - "return_value" -> Boolean on whether to return the value of the objective function
 
     """
 
@@ -166,6 +167,7 @@ class Bayesian_Optimization(Dirichlet, PPEProbabilities):
         partitions: np.ndarray,
         expert_probs: list,
         n_trials=100,
+        return_value = False
     ):
 
         dir_neg_llik = lambda lam: self.dirichlet_neg_llik(
@@ -186,6 +188,9 @@ class Bayesian_Optimization(Dirichlet, PPEProbabilities):
             minimize=True,
             total_trials=n_trials,
         )
+        
+        if return_value:
+            return best_lam, values
 
         return best_lam
 
