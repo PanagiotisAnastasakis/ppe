@@ -60,7 +60,7 @@ Inputs
 - "lambd_names" -> a list that contains the names for each of the hyperparameters. Required for BO
 - "lambd_true_vals" -> a list containing the values of the hyperparameters that we assume are true to conduct the simulation
 - "alpha" -> A value for the hyperparameter alpha of the dirichlet likelihood. If None, it is optimized along with all other hyperparameters
-- "num_bins" -> The number of bins to have in the partition
+- "num_bins" -> The number of bins to have in the partition. If the target is discrete, it is the number of classes for the target. In that case, we assume that if there are n classes, then Yε{0,1,...,n-1}
 - "lower_inner", "upper_inner" -> The lower and upper bounds of the interval that we partition
 - "param_bounds" -> the bounds that define the search space for each hyperparameter. List of lists, each corresponding to one hyperparameter and consisting of a lower and upper bound
 - "target_samples" -> the number of samples that we draw from the prior predictive distribution to compute the probabilities
@@ -84,7 +84,13 @@ def ppe_simulation(model,
                    ):
     
     lambd_true = {name: value for name, value in zip(lambd_names, lambd_true_vals)}
-    partition = make_partition(num_bins=num_bins, lower_inner = lower_inner, upper_inner = upper_inner)
+    
+    if target_type == "continuous":
+        partition = make_partition(num_bins=num_bins, lower_inner = lower_inner, upper_inner = upper_inner)
+        partition = [partition]*J
+        
+    else:
+        partition = np.array(range(num_bins))
     
     BO = Bayesian_Optimization(pymc_sampling_func=model,
                            J = J,
@@ -92,11 +98,7 @@ def ppe_simulation(model,
                            target_type=target_type,
                            target_samples=target_samples)
     
-    
-    simulated_expert_probs = BO.get_model_probs(lam = lambd_true, partitions = [partition]*J, num_samples=20_000)
-    
-    
-    
+    simulated_expert_probs = BO.get_model_probs(lam = lambd_true, partitions = partition, num_samples=20_000)
     
     if alpha is None:
         lambd_names = lambd_names + ["alpha"] ## We optimize alpha also
@@ -104,19 +106,20 @@ def ppe_simulation(model,
         
     param_types = ["range"]*len(lambd_names)
     param_expected_vals = [None]*len(lambd_names) ## we only focus on the dirichlet log likelihood
+    
 
     best_params = BO.optimize_hyperparams(param_names=lambd_names,
                                     param_types = param_types,
                                     param_bounds=param_bounds,
                                     param_expected_vals = param_expected_vals,
                                     param_weights = None,
-                                    partitions=[partition]*J,
+                                    partitions = partition,
                                     expert_probs=simulated_expert_probs,
                                     n_trials=n_trials)
     
-    best_alpha = BO.eval_function(best_params, [partition]*J, simulated_expert_probs) ##alpha
-    
-    best_probs = BO.get_model_probs(lam = best_params, partitions = [partition]*J, num_samples=20_000)
+    best_alpha = BO.eval_function(best_params, partition, simulated_expert_probs) ##alpha
+
+    best_probs = BO.get_model_probs(lam = best_params, partitions = partition, num_samples=20_000)
 
     return simulated_expert_probs, best_params, best_probs, best_alpha
 
