@@ -1,6 +1,6 @@
 import pymc as pm
 
-random_seed = 42
+random_seed = 41
 
 def gaussian_model_1(lambd, covs = None, n_samples = 1500):
         
