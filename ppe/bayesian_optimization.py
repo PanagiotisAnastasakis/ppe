@@ -190,7 +190,7 @@ class Bayesian_Optimization(Dirichlet, PPEProbabilities):
         )
         
         if return_value:
-            return best_lam, values
+            return best_lam, dir_neg_llik(best_lam)
 
         return best_lam
 
