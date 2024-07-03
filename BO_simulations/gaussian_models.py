@@ -1,6 +1,5 @@
 import pymc as pm
 
-random_seed = 41
 
 def gaussian_model_1(lambd, covs = None, n_samples = 1500):
         
@@ -14,7 +13,7 @@ def gaussian_model_1(lambd, covs = None, n_samples = 1500):
         Y_obs = pm.Normal("Y_obs", mu = mu, sigma = sigma, observed=0.) ## the observed value does not matter as we only need the prior predictive distribution
 
     with regression_model:
-        idata = pm.sample_prior_predictive(random_seed=random_seed, samples = n_samples)
+        idata = pm.sample_prior_predictive(samples = n_samples)
 
     return idata
 
@@ -35,7 +34,7 @@ def gaussian_model_2(lambd, covs = None, n_samples = 1500):
         Y_obs = pm.Normal("Y_obs", mu = mu, sigma = sigma, observed=0.) ## the observed value does not matter as we only need the prior predictive distribution
 
     with regression_model:
-        idata = pm.sample_prior_predictive(random_seed=random_seed, samples = n_samples)
+        idata = pm.sample_prior_predictive(samples = n_samples)
 
     return idata
 

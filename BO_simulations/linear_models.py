@@ -1,8 +1,6 @@
 import pymc as pm
 import numpy as np
 
-random_seed = 42
-
 
 def linear_model_1(lambd, covs = None, n_samples = 1500):
     
@@ -21,7 +19,7 @@ def linear_model_1(lambd, covs = None, n_samples = 1500):
         Y_obs = pm.Normal("Y_obs", mu = prod, sigma = lambd["sigma"], observed=np.ones(covs.shape[0]))
 
     with regression_model:
-        idata = pm.sample_prior_predictive(random_seed=random_seed, samples = n_samples)
+        idata = pm.sample_prior_predictive(samples = n_samples)
 
     return idata
 
@@ -43,7 +41,7 @@ def linear_model_2(lambd, covs = None, n_samples = 1500):
         Y_obs = pm.Normal("Y_obs", mu = prod, sigma = lambd["sigma"], observed=np.ones(covs.shape[0]))
 
     with regression_model:
-        idata = pm.sample_prior_predictive(random_seed=random_seed, samples = n_samples)
+        idata = pm.sample_prior_predictive(samples = n_samples)
 
     return idata
 
@@ -67,7 +65,7 @@ def linear_model_3(lambd, covs = None, n_samples = 1500):
         Y_obs = pm.Normal("Y_obs", mu = prod, sigma = lambd["sigma"], observed=np.ones(covs.shape[0]))
 
     with regression_model:
-        idata = pm.sample_prior_predictive(random_seed=random_seed, samples = n_samples)
+        idata = pm.sample_prior_predictive(samples = n_samples)
 
     return idata
 

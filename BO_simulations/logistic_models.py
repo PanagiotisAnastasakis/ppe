@@ -1,8 +1,6 @@
 import pymc as pm
 import numpy as np
 
-random_seed = 42
-
 
 def logistic_model_1(lambd, covs = None, n_samples = 1500):
 
