@@ -10,6 +10,7 @@ from ppe.bayesian_optimization import Bayesian_Optimization
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
+from scipy.stats import wasserstein_distance, wasserstein_distance_nd
 
 
 ## Function to make partitions for a given target
@@ -267,3 +268,11 @@ def plot_densities(model,
             plt.legend()
             plt.show()
             
+            
+            
+def wasserstein_metric(best_probs, expert_probs, J):
+    
+    if J == 1:
+        return wasserstein_distance(best_probs[0], expert_probs[0])
+    
+    return wasserstein_distance_nd(best_probs, expert_probs)
