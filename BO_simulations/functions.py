@@ -108,7 +108,7 @@ def ppe_simulation(model,
     param_types = ["range"]*len(lambd_names)
     param_expected_vals = [None]*len(lambd_names) ## we only focus on the dirichlet log likelihood
     
-
+    
     best_params, best_llik = BO.optimize_hyperparams(param_names=lambd_names,
                                     param_types = param_types,
                                     param_bounds=param_bounds,
