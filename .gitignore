@@ -159,3 +159,4 @@ cython_debug/
 testing_stochastic_2.ipynb
 More_Tests_BO.ipynb
 /figs
+.DS_Store
