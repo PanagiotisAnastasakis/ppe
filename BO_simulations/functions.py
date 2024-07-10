@@ -245,7 +245,7 @@ def plot_densities(model,
             
         plt.title('Sampled distributions of Y')
         plt.xlabel('Value')
-        plt.ylabel('Frequency')
+        plt.ylabel('Density')
         plt.legend()
         plt.show()
         
@@ -264,7 +264,7 @@ def plot_densities(model,
                 
             plt.title(f'Sampled distributions of Y for J={j+1}')
             plt.xlabel('Value')
-            plt.ylabel('Frequency')
+            plt.ylabel('Density')
             plt.legend()
             plt.show()
             
