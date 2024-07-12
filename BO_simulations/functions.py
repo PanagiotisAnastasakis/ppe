@@ -103,7 +103,7 @@ def ppe_simulation(model,
     
     if alpha is None:
         lambd_names = lambd_names + ["alpha"] ## We optimize alpha also
-        param_bounds = param_bounds + [[0.1, 70.]]
+        param_bounds = param_bounds + [[0.0001, 2000.]]
         
     param_types = ["range"]*len(lambd_names)
     param_expected_vals = [None]*len(lambd_names) ## we only focus on the dirichlet log likelihood
