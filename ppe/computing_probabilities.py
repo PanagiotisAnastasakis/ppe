@@ -2,12 +2,29 @@ import numpy as np
 import os
 import pandas as pd
 
+## that contains methods for processing inputs into probabilities in a form
+## compatible with the optimization software used for PPE
+
 
 class PPEProbabilities:
+    
+    '''
+    Inputs:
+    
+    - "target_type" -> parameter for whether the target is continuous or discrete. Options: ["continuous", "discrete"]
+    - "path" -> Boolean to denote whether we extract data from a path to a file or a folder for the expert probabilities
+    
+    '''
 
     def __init__(self, target_type, path):
         self.target_type = target_type
         self.path = path
+        
+        
+    ## Function to process the expert's input (currently not used anywhere, and it assumes a very specific format for the input data)
+    ## NOT RECOMMENDED TO USE
+    ## This input is assumed to be either a path to a file/folder or a data matrix.
+    
 
     def get_expert_data(self, expert_input):
 
@@ -16,11 +33,13 @@ class PPEProbabilities:
             if self.path:
                 if os.path.isfile(
                     expert_input
-                ):  ## Checking if the input is a single file or a folder (which is assumed to contain files). Note that if we have different number of partitions for different covariate sets, we need a folder to store them
+                ):  ## Checking if the input is a single file or a folder (which is assumed to contain files).
+                    ## Note that if we have different number of partitions for different covariate sets, we need a folder to store them
                     expert_input = pd.read_csv(expert_input, index_col=0)
                     elicited_data = expert_input.to_numpy()
 
-                else:  ## if not, then the path must lead to a folder containing multiple files. In the discrete case, we assume that each file contains the classes in column 1 and the probabilities at column 2
+                else:  ## if not, then the path must lead to a folder containing multiple files.
+                       ## In the discrete case, we assume that each file contains the classes in column 1 and the probabilities at column 2
 
                     files = os.listdir(expert_input)
 
@@ -103,8 +122,22 @@ class PPEProbabilities:
 
         return partitions, expert_probabilities
 
-    ## discrete data: "partitions" are an array containing the classes and "expert_probabilities" are a matrix with one column for each J
-    ## continuous data: "partitions" are a list of length J, containing one partition for each covariate set and "expert_probabilities" is a list of same length, containing the respective probabilities
+        ## discrete data: "partitions" are an array containing the classes and "expert_probabilities" are a matrix with one column for each J
+        ## continuous data: "partitions" are a list of length J, containing one partition for each covariate set and "expert_probabilities" is a list of same length, containing the respective probabilities
+
+    ## Function for computing the prior predictive probabilities from samples of the prior predictive distribution
+    
+    '''
+    Inputs:
+    
+    - "samples" -> Either a list of samples from the prior predictive distribution, or in the case that we elicit
+                   probabilities for multiple covariate sets, a matrix where each column j corresponds to samples for
+                   covariate set j, with jε{1,...,J}.
+    - "partitions" -> A list of partitions for the target. If the target is discrete, then it has one element for each class.
+                      If it is continuous, then it contains a list of intervals of the form [a,b] that cover all the target possible values
+                      Same as with "samples", if we have multiple covariate sets, then it is a list of partitions for each j, thus
+                      a list of length J.
+    '''
 
     def ppd_probs(self, samples, partitions):
 
@@ -158,7 +191,7 @@ class PPEProbabilities:
 
             for j in range(J):
 
-                partition = np.copy(partitions[j])  # if J > 1 else np.copy(partitions)
+                partition = np.copy(partitions[j])
 
                 cov_set_j = samples[:, j] if J > 1 else samples
 

@@ -9,6 +9,7 @@ from ppe.computing_probabilities import PPEProbabilities
 
 
 class Bayesian_Optimization(Dirichlet, PPEProbabilities):
+    
     """
     Inputs:
 
@@ -65,7 +66,7 @@ class Bayesian_Optimization(Dirichlet, PPEProbabilities):
 
     - "lam" -> the hyperparameters
     - "partitions" -> the partitioning for the target space for each covariate set. Can be either a list/array (J=1) or a list/array of lists/arrays for each covariate set (J>1)
-    - "expert_probabilities" -> the expert's probabilistic judgements for each covariate set. Can be either a list (J=1) or a list of lists for each covariate set (J>1)
+    - "expert_probs" -> the expert's probabilistic judgements for each covariate set. Can be either a list (J=1) or a list of lists for each covariate set (J>1)
 
     """
 
@@ -155,7 +156,7 @@ class Bayesian_Optimization(Dirichlet, PPEProbabilities):
     - "param_expected_vals" -> the expert's estimates for the hyperparameters. a list of numbers that accepts also None if no such input can be given.
     - "param_weights" -> the level of confidence for these expected value (a list of values)
     - "partitions" -> the partitioning for the target space for each covariate set. Can be either a list/array (J=1) or a list/array of lists/arrays for each covariate set (J>1)
-    - "expert_probabilities" -> the expert's probabilistic judgements for each covariate set. Can be either a list (J=1) or a list of lists for each covariate set (J>1)
+    - "expert_probs" -> the expert's probabilistic judgements for each covariate set. Can be either a list (J=1) or a list of lists for each covariate set (J>1)
     - "n_trials" -> the number of trials for the Bayesian Optimization algorithm
     - "return_value" -> Boolean on whether to return the value of the objective function
 
@@ -208,7 +209,7 @@ class Bayesian_Optimization(Dirichlet, PPEProbabilities):
 
     - "lam" -> the hyperparameters
     - "partitions" -> the partitioning for the target space for each covariate set. Can be either a list/array (J=1) or a list/array of lists/arrays for each covariate set (J>1)
-    - "expert_probabilities" -> the expert's probabilistic judgements for each covariate set. Can be either a list (J=1) or a list of lists for each covariate set (J>1)
+    - "expert_probs" -> the expert's probabilistic judgements for each covariate set. Can be either a list (J=1) or a list of lists for each covariate set (J>1)
 
     """
 
