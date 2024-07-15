@@ -156,7 +156,6 @@ cython_debug/
 # Local stuff
 *.pdf
 /temp
-testing_stochastic_2.ipynb
-More_Tests_BO.ipynb
 /figs
 .DS_Store
+*.csv
