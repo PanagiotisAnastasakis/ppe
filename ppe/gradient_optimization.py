@@ -1,20 +1,29 @@
 import jax.numpy as jnp
-from jax import grad, jacobian, jit
+from jax import grad, jacobian
 from .dirichlet import Dirichlet
 
 
+## Class to perform PPE, assuming that we have the prior predictive distribution available in closed form
+
+
 class optimize_ppe(Dirichlet):  ### closed form is assumed!!!
+    
+    '''
+    Inputs:
+    
+    - "alpha", "J" -> inherited from Dirichlet class
+    - "ppd" -> a function for the prior predictive distribution. It is assumed that is takes 2 or 3 arguments:
+               - "partition", which is one interval/class that the target may belong to
+               - "lam", which is a hyperparameter vector \lambda
+               - "covariates", which is optional and used only when the probabilistic model is defined as a
+                               function of covariates
+    '''
+    
 
     def __init__(self, alpha, J, ppd):
         super().__init__(alpha, J)
         self.ppd = ppd
-
-    ### We assume that we have as input the prior probability distribution in closed form, for one partition.
-    ### For instance, if Y~N(0,1) and we have a partition A=(a,b], then ppd = P(YεA) = Φ(b) - Φ(a)
-    ### This input ("ppd") is assumed to have three parameters:
-    # 1) the partition (in the form of interval in the continuous case, or a single value in the discrete case).
-    # 2) the hyperparameters "lam".
-    # 3( the covariates of the model, if any. If there aren't any covariates, "ppd" is only defined by the first two inputs.
+        
 
     ## To keep track of the dimensions, suppose that we have m hyperparameters and n partitions for a given covariate set j (j \in {1,...,J})
 
@@ -23,9 +32,21 @@ class optimize_ppe(Dirichlet):  ### closed form is assumed!!!
     ## is either a list of covariate sets, or an array where each row corresponds to one covariate set. We initialize both parameters with None.
     ## If there are no covariates in the data, we simply have None in their place and they are not included in any computation.
 
-    ## Here, we want to define the prior probability distribution for the partition of one covariate set j (j \in {1,...,J})).
-    ## We will create an array that has as many components as there are partitions and contains in the i-th position the ppd for the i-th partition
+    ##
+
+    ## Function to define the prior probability distribution for the partition of one covariate set j (j \in {1,...,J})).
+    ## It will create an array that has as many components as there are partitions and contains in the i-th position the ppd for the i-th partition
     ## It takes as an input the partition, the hyperparameters \lambda and the covariates (if any).
+    
+    '''
+    Inputs:
+    
+    - "partition" -> a list containing the partitioning for one covariate set
+    - "lam" -> the hyperparameter vector
+    - "covariates" -> either an array or None, depending on whether the target is defined through covariates
+    '''
+    
+    
 
     def ppd_function(self, partitions, lam, covariates=None):
 
@@ -39,7 +60,14 @@ class optimize_ppe(Dirichlet):  ### closed form is assumed!!!
 
         return jnp.array(prior_pd)  # shape (n, 1)
 
-    ## Now, we compute the gradient (jacobian) of the prior probability distribution with respect to \lambda for one covariate set j (j \in {1,...,J})).
+    ## Function to compute the gradient (jacobian) of the prior probability distribution with respect to \lambda for one covariate set j (j \in {1,...,J})).
+    
+    '''
+    Inputs:
+    
+    - "partition", "lam", "covariates" -> same as before
+    
+    '''
 
     def grad_ppd_lambda(self, partitions, lam, covariates=None):
 
@@ -55,7 +83,19 @@ class optimize_ppe(Dirichlet):  ### closed form is assumed!!!
                 lam
             )  # shape (m, n)
 
-    ## Finally, we compute the dirichlet likelihood gradient with respect to lambda. This will be used to perform gradient descent.
+    ## Function to compute the Dirichlet log-likelihood gradient for the j'th covariate set with respect to lambda.
+    ## This will be used to perform gradient descent.
+    
+    '''
+    Inputs:
+    
+    - "lam" -> the hyperparameter vector
+    - "total_partitions" -> a list containing all the partitions for each covariate set. If there are no covariate sets (J=1), it is a list with only one element
+    - "total_covariates" -> a list containing all the covariate sets. If there are no covariate sets (J=1), it is simply [None]
+    - "total_expert_probs" -> a list containing all the expert probabilities for each covariate set. If there are no covariate sets (J=1), it is a list with only one element
+    - "index" -> the index jε{1,...,J} that we compute the gradient for  
+    '''
+    
 
     def grad_dirichlet_lambda(
         self, lam, total_partitions, total_covariates, total_expert_probs, index
@@ -80,8 +120,14 @@ class optimize_ppe(Dirichlet):  ### closed form is assumed!!!
 
         return dir_grad_lambda  ## shape (m,1)
 
-    ## Alternative computation of the dirichlet likelihood gradient with respect to \lambda. Here, we define the likelihood with
+    ## Function for alternative computation of the dirichlet likelihood gradient with respect to \lambda. Here, we define the likelihood with
     ## respect to \lambda and we take the gradient right away, without the need of further computations and the use of chain rule.
+    
+    '''
+    Inputs:
+    
+    - "lam", "total_partitions", "total_covariates", "total_expert_probs", "index" -> same as before 
+    '''
 
     def grad_dirichlet_lambda_2(
         self, lam, total_partitions, total_covariates, total_expert_probs, index
@@ -98,7 +144,14 @@ class optimize_ppe(Dirichlet):  ### closed form is assumed!!!
 
         return -grad(log_lik, argnums=0)(lam)  ## shape (m,1)
 
-    ## If we have multiple covariate sets (J), we need to sum the gradients (implemented with "grad_dirichlet_lambda", although "grad_dirichlet_lambda_2") would lead to the exact same results.
+    ## Function to sum the gradients for j=1,...,J (can be run with either "grad_dirichlet_lambda" or "grad_dirichlet_lambda_2")
+    
+    '''
+    Inputs:
+    
+    - "total_partitions", "lam", "total_expert_probs", "total_covariates" -> same as before 
+    
+    '''
 
     def sum_grad_dirichlet_lambda(
         self, total_partitions, lam, total_expert_probs, total_covariates=None
@@ -113,6 +166,22 @@ class optimize_ppe(Dirichlet):  ### closed form is assumed!!!
             )
 
         return total_dir_grad_lambda  ## shape (m,1)
+    
+    ## Function to perform gradient descent and optimize the hyperparameters
+    
+    '''
+    Inputs:
+    
+    - "total_partitions" -> same as before 
+    - "total_expert_probs" -> same as before 
+    - "lam_0" -> starting value for the hyperparameters
+    - "iters" -> number of iterations for the algorithm to run
+    - "step_size" -> the step size for gradient descent
+    - "tol" -> value for the stopping criterion: if the distance between two consecutive estimates of the objective function is less than "tol", the algorithm stops
+    - "total_covariates" -> same as before 
+    - "get_lik_and_grad_progression" -> Boolean on whether to return the values of the objective and the l2-norm of the gradient at each iteration
+
+    '''
 
     def gradient_descent(
         self,
@@ -177,8 +246,18 @@ class optimize_ppe(Dirichlet):  ### closed form is assumed!!!
 
         return lam_new
 
-    ## Function to get the \alpha estimate based on the MLE formula, using as inputs the expert probabilities and
-    ## the partitions, hyperparameters lambda and covariate sets.
+
+    ## Function to get the \alpha estimate based on the MLE formula
+    
+    '''
+    Inputs:
+    
+    - "total_partitions" -> same as before 
+    - "best_lam" -> the hyperparameter estimates resulting from the gradient descent algorithm
+    - "total_expert_probs" -> same as before
+    - "total_covariates" -> same as before 
+    
+    '''
 
     def get_alpha(
         self, total_partitions, best_lam, total_expert_probs, total_covariates=None
