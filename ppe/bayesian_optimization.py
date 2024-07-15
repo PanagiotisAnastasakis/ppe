@@ -36,9 +36,13 @@ class Bayesian_Optimization(Dirichlet, PPEProbabilities):
 
     """
 
-    def get_model_probs(self, lam, partitions, num_samples = None):
+    def get_model_probs(self, lam, partitions, num_samples=None):
 
-        idata = self.pymc_sampling_func(lam, self.target_samples) if num_samples is None else self.pymc_sampling_func(lam, num_samples)
+        idata = (
+            self.pymc_sampling_func(lam, self.target_samples)
+            if num_samples is None
+            else self.pymc_sampling_func(lam, num_samples)
+        )
 
         prior_predictive_samples = idata.prior_predictive["Y_obs"][0]
 
@@ -167,20 +171,23 @@ class Bayesian_Optimization(Dirichlet, PPEProbabilities):
         partitions: np.ndarray,
         expert_probs: list,
         n_trials=100,
-        return_value = False
+        return_value=False,
     ):
 
         dir_neg_llik = lambda lam: self.dirichlet_neg_llik(
             lam, partitions, expert_probs
         ) + self.hyperprior_llik(lam, param_bounds, param_expected_vals, param_weights)
-        
+
         def create_param_dict(name, type, bound):
             if type == "range":
                 return {"name": name, "type": type, "bounds": bound}
             return {"name": name, "type": type, "values": bound}
 
-        parameters = [create_param_dict(name, type, bound) for name, type, bound in zip(param_names, param_types, param_bounds)]
-        
+        parameters = [
+            create_param_dict(name, type, bound)
+            for name, type, bound in zip(param_names, param_types, param_bounds)
+        ]
+
         best_lam, values, experiment, model = optimize(
             parameters=parameters,
             evaluation_function=dir_neg_llik,
@@ -188,7 +195,7 @@ class Bayesian_Optimization(Dirichlet, PPEProbabilities):
             minimize=True,
             total_trials=n_trials,
         )
-        
+
         if return_value:
             return best_lam, dir_neg_llik(best_lam)
 

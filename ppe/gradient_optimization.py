@@ -165,7 +165,9 @@ class optimize_ppe(Dirichlet):  ### closed form is assumed!!!
 
             curr_lik = self.sum_llik(curr_model_probs, total_expert_probs)
 
-            if (abs(curr_lik - prev_lik) < tol):  ## Stopping criterion: the dirichlet log likelihood changes less than "tol" between two iterations
+            if (
+                abs(curr_lik - prev_lik) < tol
+            ):  ## Stopping criterion: the dirichlet log likelihood changes less than "tol" between two iterations
                 break
 
             lam_old = lam_new

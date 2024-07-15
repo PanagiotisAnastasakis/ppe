@@ -158,7 +158,7 @@ class PPEProbabilities:
 
             for j in range(J):
 
-                partition = np.copy(partitions[j])# if J > 1 else np.copy(partitions)
+                partition = np.copy(partitions[j])  # if J > 1 else np.copy(partitions)
 
                 cov_set_j = samples[:, j] if J > 1 else samples
 
