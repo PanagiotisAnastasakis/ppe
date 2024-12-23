@@ -154,7 +154,6 @@ cython_debug/
 
 
 # Local stuff
-*.pdf
 /temp
 /figs
 .DS_Store
